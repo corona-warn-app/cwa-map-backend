@@ -1,0 +1,12 @@
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('6d06156f-d1cc-11eb-9dd8-98fa9b9d4146', null, 'A1012', 'Davasto', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('0c1ce931-d1ce-11eb-a3e6-98fa9b9d4146', null, 'A1022', 'VentureLeap', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('c6f67a0e-d1c5-11eb-8de5-98fa9b9d4146', null, 'A1004', 'Ecolog', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('a5de189c-d1cc-11eb-9dd8-98fa9b9d4146', null, 'A1014', 'Plattform8', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('421a88c6-d1ce-11eb-a3e6-98fa9b9d4146', null, 'A1024', 'codepiraten', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('9a4e14c9-d1cd-11eb-a3e6-98fa9b9d4146', null, 'A1019', 'TestNOW', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('c89afd3b-d1c9-11eb-9f51-98fa9b9d4146', null, 'A1011', 'Simba N3', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('6db0896d-d1cd-11eb-a3e6-98fa9b9d4146', null, 'A1017', 'Mein-Corona-Schnelltest', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('b5b2c6d5-d1cd-11eb-a3e6-98fa9b9d4146', null, 'A1020', 'IDB-Trade-schnelltest24', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('63cf3b59-d1c9-11eb-9f51-98fa9b9d4146', null, 'A1009', 'DRK-Odenwaldkreis', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('fae97915-d1cf-11eb-a43f-98fa9b9d4146', null, 'A1026', 'TicketIO', null, null);
+INSERT INTO public.operators (uuid, subject, operator_number, name, logo, marker_icon) VALUES ('7d66f391-d1c1-11eb-87ae-98fa9b9d4146', null, 'A1002', 'DM', null, null);
