@@ -197,7 +197,7 @@ func (c *Centers) AdminGetCentersCSV(w http.ResponseWriter, r *http.Request) {
 
 	for _, center := range centers {
 		if err := csvWriter.Write([]string{
-			center.Operator.UUID,
+			*center.Operator.Subject,
 			center.Operator.Name,
 			center.Name,
 			center.Address,
