@@ -75,10 +75,16 @@ func NewCentersAPI(centersService services.Centers, centersRepository repositori
 		r.Use(jwtauth.Verifier(auth))
 		r.Use(jwtauth.Authenticator)
 
-		r.Post("/", api.Handle(centers.ImportCenters))
-		r.Post("/csv", api.Handle(centers.PrepareCsvImport))
 		r.Get("/all", api.Handle(centers.GetCenters))
+		r.Post("/csv", api.Handle(centers.PrepareCsvImport))
+		r.Post("/", api.Handle(centers.ImportCenters))
+
+		// get centers
+		r.Get("/reference/{reference}", api.Handle(centers.FindCenterByReference))
+
+		// delete centers
 		r.Delete("/{uuid}", api.Handle(centers.DeleteCenter))
+		r.Delete("/reference/{reference}", api.Handle(centers.deleteCenterByReference))
 
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(api.RequireRole(security.RoleAdmin))
@@ -165,7 +171,7 @@ func (c *Centers) GetCenters(_ http.ResponseWriter, r *http.Request) (interface{
 	}, nil
 }
 
-func (c *Centers) AdminGeocodeAll(w http.ResponseWriter, r *http.Request) (interface{}, error) {
+func (c *Centers) AdminGeocodeAll(_ http.ResponseWriter, _ *http.Request) (interface{}, error) {
 	centers, err := c.centersRepository.FindAll()
 	if err != nil {
 		return nil, err
@@ -214,7 +220,7 @@ func (c *Centers) AdminGetCentersCSV(w http.ResponseWriter, r *http.Request) {
 	csvWriter.Flush()
 }
 
-func (c *Centers) ImportCenters(w http.ResponseWriter, r *http.Request) (interface{}, error) {
+func (c *Centers) ImportCenters(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	var importData model.ImportCenterRequest
 	buffer, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -234,6 +240,36 @@ func (c *Centers) ImportCenters(w http.ResponseWriter, r *http.Request) (interfa
 		return nil, err
 	}
 	return model.MapToCenterDTOs(result), nil
+}
+
+func (c *Centers) FindCenterByReference(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+	reference := chi.URLParam(r, "reference")
+	operator, err := c.operatorsService.GetCurrentOperator(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	center, err := c.centersRepository.FindByOperatorAndUserReference(r.Context(), operator.UUID, reference)
+	if err != nil {
+		return nil, err
+	}
+	return center, err
+}
+
+// deleteCenterByReference deletes the center identified by the current operator and the reference.
+func (c *Centers) deleteCenterByReference(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+	reference := chi.URLParam(r, "reference")
+	operator, err := c.operatorsService.GetCurrentOperator(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	center, err := c.centersRepository.FindByOperatorAndUserReference(r.Context(), operator.UUID, reference)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, c.centersRepository.Delete(r.Context(), center)
 }
 
 func (c *Centers) DeleteCenter(_ http.ResponseWriter, r *http.Request) (interface{}, error) {

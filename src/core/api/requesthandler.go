@@ -3,8 +3,10 @@ package api
 import (
 	"com.t-systems-mms.cwa/core/security"
 	"encoding/json"
+	"errors"
 	"github.com/go-playground/validator"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 	"net/http"
 	"time"
 )
@@ -48,7 +50,10 @@ func WriteError(writer http.ResponseWriter, request *http.Request, err error) {
 		status = http.StatusBadRequest
 		response = createValidationErrorResponse(err)
 	default:
-		if err == security.ErrForbidden {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+			response = ErrorResponse{Timestamp: time.Now(), Error: "record not found"}
+		} else if err == security.ErrForbidden {
 			response = ErrorResponse{Timestamp: time.Now(), Error: "forbidden"}
 		} else {
 			response = ErrorResponse{Timestamp: time.Now(), Error: "internal server error"}
