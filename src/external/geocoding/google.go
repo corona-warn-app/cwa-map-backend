@@ -73,12 +73,12 @@ func (g *GoogleGeocoder) GetCoordinates(ctx context.Context, address string) (Re
 		Zip:     g.getAddressComponent(result, "postal_code"),
 		Bounds: domain.Bounds{
 			NorthEast: domain.Coordinates{
-				Longitude: result.Geometry.Bounds.NorthEast.Lng,
-				Latitude:  result.Geometry.Bounds.NorthEast.Lat,
+				Longitude: result.Geometry.Viewport.NorthEast.Lng,
+				Latitude:  result.Geometry.Viewport.NorthEast.Lat,
 			},
 			SouthWest: domain.Coordinates{
-				Longitude: result.Geometry.Bounds.SouthWest.Lng,
-				Latitude:  result.Geometry.Bounds.SouthWest.Lat,
+				Longitude: result.Geometry.Viewport.SouthWest.Lng,
+				Latitude:  result.Geometry.Viewport.SouthWest.Lat,
 			},
 		},
 		Coordinates: domain.Coordinates{
