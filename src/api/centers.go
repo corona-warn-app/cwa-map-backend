@@ -288,7 +288,7 @@ func (c *Centers) DeleteCenter(_ http.ResponseWriter, r *http.Request) (interfac
 		return nil, err
 	}
 
-	if center.OperatorUUID != operator.UUID {
+	if center.OperatorUUID != operator.UUID && !security.HasRole(r.Context(), security.RoleAdmin) {
 		return nil, security.ErrForbidden
 	}
 
