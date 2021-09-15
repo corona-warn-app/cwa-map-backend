@@ -196,7 +196,7 @@ func (c *Centers) AdminGetCentersCSV(w http.ResponseWriter, r *http.Request) {
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Comma = ';'
 
-	if err := csvWriter.Write([]string{"subject", "operator", "uuid", "name", "address", "zip", "region", "dcc", "testkinds", "appointment", "message"}); err != nil {
+	if err := csvWriter.Write([]string{"subject", "operator", "uuid", "name", "address", "zip", "region", "dcc", "testkinds", "appointment", "longitude", "latitude", "message"}); err != nil {
 		logrus.WithError(err).Error("Error writing response")
 		return
 	}
@@ -212,6 +212,8 @@ func (c *Centers) AdminGetCentersCSV(w http.ResponseWriter, r *http.Request) {
 			util.PtrToString(center.Region, ""),
 			util.BoolToString(center.DCC, "false"),
 			strings.Join(center.TestKinds, ","),
+			strconv.FormatFloat(center.Longitude, 'f', 10, 64),
+			strconv.FormatFloat(center.Latitude, 'f', 10, 64),
 			util.PtrToString((*string)(center.Appointment), ""),
 			util.PtrToString(center.Message, ""),
 		}); err != nil {
