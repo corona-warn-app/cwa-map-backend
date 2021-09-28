@@ -81,6 +81,7 @@ type Center struct {
 	Ranking      float64
 	Zip          *string
 	Region       *string
+	Email        *string `validate:"omitempty,email"`
 }
 
 type CenterWithDistance struct {

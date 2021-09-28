@@ -10,13 +10,12 @@ import (
 	"com.t-systems-mms.cwa/repositories"
 	"com.t-systems-mms.cwa/services"
 	"encoding/csv"
-	"encoding/json"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
+	"github.com/go-playground/validator"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -55,9 +54,12 @@ type Centers struct {
 	geocoder          geocoding.Geocoder
 	operatorsService  services.Operators
 	centersRepository repositories.Centers
+	bugReportsService services.BugReports
+	validate          *validator.Validate
 }
 
 func NewCentersAPI(centersService services.Centers, centersRepository repositories.Centers,
+	bugReportsService services.BugReports,
 	operatorsService services.Operators, geocoder geocoding.Geocoder, auth *jwtauth.JWTAuth) *Centers {
 	centers := &Centers{
 		Router:            chi.NewRouter(),
@@ -65,11 +67,14 @@ func NewCentersAPI(centersService services.Centers, centersRepository repositori
 		centersRepository: centersRepository,
 		operatorsService:  operatorsService,
 		geocoder:          geocoder,
+		bugReportsService: bugReportsService,
+		validate:          validator.New(),
 	}
 
 	// public endpoints
 	centers.Get("/", api.Handle(centers.FindCenters))
 	centers.Get("/bounds", api.Handle(centers.Geocode))
+	centers.Post("/{uuid}/report", api.Handle(centers.createBugReport))
 
 	centers.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(auth))
@@ -226,11 +231,7 @@ func (c *Centers) AdminGetCentersCSV(w http.ResponseWriter, r *http.Request) {
 
 func (c *Centers) ImportCenters(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	var importData model.ImportCenterRequest
-	buffer, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(buffer, &importData); err != nil {
+	if err := api.ParseRequestBody(r, c.validate, &importData); err != nil {
 		return nil, err
 	}
 
@@ -274,6 +275,18 @@ func (c *Centers) deleteCenterByReference(_ http.ResponseWriter, r *http.Request
 	}
 
 	return nil, c.centersRepository.Delete(r.Context(), center)
+}
+
+// createBugReport creates a bug report for the specified center
+func (c *Centers) createBugReport(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+	uuid := chi.URLParam(r, "uuid")
+	var request model.CreateBugReportRequestDTO
+	if err := api.ParseRequestBody(r, c.validate, &request); err != nil {
+		return nil, err
+	}
+
+	_, err := c.bugReportsService.CreateBugReport(r.Context(), uuid, request.Subject, request.Message)
+	return nil, err
 }
 
 func (c *Centers) DeleteCenter(_ http.ResponseWriter, r *http.Request) (interface{}, error) {

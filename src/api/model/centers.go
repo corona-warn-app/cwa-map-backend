@@ -17,7 +17,7 @@ type FindCentersResult struct {
 }
 
 type ImportCenterRequest struct {
-	Centers   []EditCenterDTO `json:"centers"`
+	Centers   []EditCenterDTO `json:"centers" validate:"dive"`
 	DeleteAll bool            `json:"deleteAll"`
 }
 
@@ -30,6 +30,7 @@ type ImportCenterResult struct {
 type CenterSummaryDTO struct {
 	UUID         string          `json:"uuid"`
 	Name         string          `json:"name"`
+	Email        *string         `json:"email"`
 	Website      *string         `json:"website"`
 	Coordinates  *CoordinatesDTO `json:"coordinates"`
 	Logo         *string         `json:"logo"`
@@ -58,6 +59,7 @@ func (CenterSummaryDTO) MapFromDomain(center *domain.Center) *CenterSummaryDTO {
 	return &CenterSummaryDTO{
 		UUID:         center.UUID,
 		Name:         center.Name,
+		Email:        center.Email,
 		Website:      center.Website,
 		Coordinates:  CoordinatesDTO{}.MapFromModel(&center.Coordinates),
 		Logo:         getCenterLogo(center),
@@ -121,12 +123,13 @@ func MapToCenterDTOs(centers []domain.Center) []CenterDTO {
 type EditCenterDTO struct {
 	UserReference *string  `json:"userReference"`
 	Name          string   `json:"name" validate:"required"`
+	Email         *string  `json:"email" validate:"omitempty,email"`
 	Website       *string  `json:"website"`
 	Address       string   `json:"address" validate:"required"`
-	OpeningHours  []string `json:"openingHours"`
+	OpeningHours  []string `json:"openingHours" validate:"dive,max=64"`
 	AddressNote   *string  `json:"addressNote"`
-	Appointment   *string  `json:"appointment"`
-	TestKinds     []string `json:"testKinds"`
+	Appointment   *string  `json:"appointment" validate:"omitempty,oneof=Required NotRequired Possible"`
+	TestKinds     []string `json:"testKinds" validate:"dive,oneof=Antigen PCR Vaccination Antibody"`
 	DCC           *bool    `json:"dcc"`
 	EnterDate     *string  `json:"enterDate"`
 	LeaveDate     *string  `json:"leaveDate"`
@@ -160,6 +163,7 @@ func (c EditCenterDTO) MapToDomain() domain.Center {
 		DCC:           c.DCC,
 		EnterDate:     enterDate,
 		LeaveDate:     leaveDate,
+		Email:         c.Email,
 	}
 }
 

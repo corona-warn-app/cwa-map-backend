@@ -2,6 +2,7 @@ package main
 
 import (
 	"com.t-systems-mms.cwa/external/geocoding"
+	"com.t-systems-mms.cwa/services"
 	"errors"
 	"fmt"
 	"github.com/hashicorp/vault/api"
@@ -17,6 +18,8 @@ type Config struct {
 	Database       DatabaseConfig
 	Google         geocoding.GoogleGeocoderConfig
 	Authentication AuthenticationConfig
+	BugReports     services.BugReportConfig
+	Email          services.EmailConfig
 }
 
 type DatabaseConfig struct {
@@ -103,6 +106,34 @@ func LoadConfig() error {
 	if err := readIntSecret(logicalClient, backend+"/data/database", "idle-pool-size",
 		&appConfig.Database.IdlePoolSize); err != nil {
 		appConfig.Database.IdlePoolSize = 10
+	}
+
+	// E-Mail
+	if err := readStringSecret(logicalClient, backend+"/data/email", "smtp-host",
+		&appConfig.Email.SmtpHost); err != nil {
+		return err
+	}
+	if err := readIntSecret(logicalClient, backend+"/data/email", "smtp-port",
+		&appConfig.Email.SmtpPort); err != nil {
+		return err
+	}
+	if err := readStringSecret(logicalClient, backend+"/data/email", "smtp-user",
+		&appConfig.Email.SmtpUser); err != nil {
+		return err
+	}
+	if err := readStringSecret(logicalClient, backend+"/data/email", "smtp-password",
+		&appConfig.Email.SmtpPassword); err != nil {
+		return err
+	}
+	if err := readStringSecret(logicalClient, backend+"/data/email", "from",
+		&appConfig.Email.From); err != nil {
+		return err
+	}
+
+	// Bug reports
+	if err := readIntSecret(logicalClient, backend+"/data/reports", "interval",
+		&appConfig.BugReports.Interval); err != nil {
+		appConfig.BugReports.Interval = 24 * 60
 	}
 
 	// Authentication

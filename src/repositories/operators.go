@@ -72,21 +72,28 @@ func (r *operatorsRepository) GetOrCreateByToken(ctx context.Context, token jwt.
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Create the operator with default settings
 		name := ""
-		nameEntry, ok := token.Get("name")
-		if ok {
-			name = nameEntry.(string)
-		}
-		username := ""
-		usernameEntry, ok := token.Get("preferred_username")
-		if ok {
-			username = usernameEntry.(string)
+		if entry, ok := token.Get("name"); ok {
+			name = entry.(string)
 		}
 
+		operatorNumber := ""
+		if entry, ok := token.Get("preferred_username"); ok {
+			operatorNumber = entry.(string)
+		}
+
+		email := ""
+		if entry, ok := token.Get("email"); ok {
+			email = entry.(string)
+		}
+
+		receiver := domain.ReportReceiverOperator
 		return r.Save(ctx, domain.Operator{
-			UUID:           id.String(),
-			OperatorNumber: &username,
-			Name:           name,
-			Subject:        &subject,
+			UUID:               id.String(),
+			OperatorNumber:     &operatorNumber,
+			Name:               name,
+			Subject:            &subject,
+			BugReportsReceiver: &receiver,
+			Email:              &email,
 		})
 	}
 	return operator, nil

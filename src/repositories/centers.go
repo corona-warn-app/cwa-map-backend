@@ -30,8 +30,7 @@ type CenterStatistics struct {
 }
 
 type Centers interface {
-	UseTransaction(ctx context.Context, fn func(ctx context.Context) error) error
-
+	Repository
 	FindByUUID(ctx context.Context, uuid string) (domain.Center, error)
 	Delete(ctx context.Context, center domain.Center) error
 
@@ -80,7 +79,10 @@ func (r *centersRepository) Delete(ctx context.Context, center domain.Center) er
 
 func (r *centersRepository) FindByUUID(ctx context.Context, uuid string) (domain.Center, error) {
 	var center domain.Center
-	err := r.db.Model(&domain.Center{}).Where("uuid = ?", uuid).First(&center).Error
+	err := r.db.Model(&domain.Center{}).
+		Preload("Operator").
+		Where("uuid = ?", uuid).
+		First(&center).Error
 	return center, err
 }
 

@@ -38,7 +38,7 @@ func createValidationErrorResponse(errors validator.ValidationErrors) Validation
 	for _, fieldError := range errors {
 		fields = append(fields, ValidationFieldError{
 			Field:      fieldError.Field(),
-			Validation: fieldError.Tag(),
+			Validation: fieldError.Tag() + "=" + fieldError.Param(),
 		})
 	}
 	return ValidationErrorResponse{

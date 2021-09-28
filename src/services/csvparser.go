@@ -23,6 +23,7 @@ const (
 	cityIndex          = 6
 	enterDateIndex     = 8
 	leaveDateIndex     = 9
+	emailIndex         = 12
 	openingHoursIndex  = 13
 	appointmentIndex   = 14
 	testKindsIndex     = 15
@@ -143,6 +144,13 @@ func (c *CsvParser) parseCsvRow(entry []string) ImportCenterResult {
 	var website *string
 	if entry := strings.TrimSpace(entry[websiteIndex]); entry != "" && strings.ToLower(entry) != "null" {
 		website = &entry
+	} else {
+		result.Errors = append(result.Errors, "invalid email address: "+entry)
+	}
+
+	var email *string
+	if entry := strings.TrimSpace(entry[emailIndex]); entry != "" && strings.ToLower(entry) != "null" {
+		email = &entry
 	}
 
 	dcc := strings.ToLower(strings.TrimSpace(entry[dccIndex])) == "ja"
@@ -173,6 +181,7 @@ func (c *CsvParser) parseCsvRow(entry []string) ImportCenterResult {
 	result.Center = domain.Center{
 		UserReference: userReference,
 		Name:          strings.TrimSpace(entry[nameIndex]),
+		Email:         email,
 		Website:       website,
 		Coordinates: domain.Coordinates{
 			Longitude: 0,

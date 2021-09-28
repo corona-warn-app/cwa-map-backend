@@ -6,6 +6,7 @@ type OperatorDTO struct {
 	UUID           string  `json:"uuid"`
 	OperatorNumber *string `json:"operatorNumber"`
 	Name           string  `json:"name"`
+	Email          *string `json:"email"`
 	Logo           *string `json:"logo"`
 	MarkerIcon     *string `json:"markerIcon"`
 }
@@ -33,5 +34,6 @@ func MapToOperatorDTO(operator *domain.Operator) *OperatorDTO {
 		Name:           operator.Name,
 		Logo:           logo,
 		MarkerIcon:     markerIcon,
+		Email:          operator.Email,
 	}
 }

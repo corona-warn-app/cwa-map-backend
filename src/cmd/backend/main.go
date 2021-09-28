@@ -69,10 +69,18 @@ func main() {
 	sqlDB.SetMaxOpenConns(appConfig.Database.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(time.Duration(appConfig.Database.ConnMaxLifetime) * time.Minute)
 
+	settingsRepository := repositories.NewSystemSettingsRepository(db)
+
 	centersRepository := repositories.NewCentersRepository(db)
 	operatorsRepository := repositories.NewOperatorsRepository(db)
 	operatorsService := services.NewOperatorsService(operatorsRepository)
 	centersService := services.NewCentersService(centersRepository, operatorsRepository, operatorsService, geocoder)
+
+	mailService := services.NewMailService(appConfig.Email)
+
+	bugReportsRepository := repositories.NewBugReportsRepository(db)
+	bugReportsService := services.NewBugReportsService(appConfig.BugReports,
+		mailService, centersRepository, bugReportsRepository, settingsRepository)
 
 	// configure authentication
 	jwksSource := jwks.NewWebSource(appConfig.Authentication.JwksUrl)
@@ -88,7 +96,7 @@ func main() {
 	router := chi.NewRouter()
 	router.Use(middleware.DefaultLogger)
 	router.Handle("/metrics", initMetricsHandler(centersRepository, operatorsRepository))
-	router.Mount("/api/centers", api.NewCentersAPI(centersService, centersRepository, operatorsService, geocoder, tokenAuth))
+	router.Mount("/api/centers", api.NewCentersAPI(centersService, centersRepository, bugReportsService, operatorsService, geocoder, tokenAuth))
 	router.Mount("/api/operators", api.NewOperatorsAPI(operatorsRepository, operatorsService, tokenAuth))
 
 	server := &http.Server{
@@ -108,6 +116,8 @@ func main() {
 		}
 		serverWaitHandle.Done()
 	}()
+
+	go bugReportsService.PublishScheduler()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)

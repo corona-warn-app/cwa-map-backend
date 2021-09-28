@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"io"
 	"net/http"
 	"time"
 )
@@ -77,4 +78,20 @@ func WriteResponse(writer http.ResponseWriter, code int, body interface{}) {
 			logrus.WithError(err).Error("Error writing response")
 		}
 	}
+}
+
+// ParseRequestBody parses the request body, unmarshals the json into target and validates it
+func ParseRequestBody(r *http.Request, validate *validator.Validate, target interface{}) error {
+	if data, err := io.ReadAll(r.Body); err == nil {
+		if err := json.Unmarshal(data, target); err == nil {
+			if vErr := validate.Struct(target); vErr != nil {
+				return vErr
+			}
+		} else {
+			return err
+		}
+	} else {
+		return err
+	}
+	return nil
 }

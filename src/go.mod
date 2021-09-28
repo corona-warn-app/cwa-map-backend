@@ -20,6 +20,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/vincent-petithory/dataurl v0.0.0-20191104211930-d1553a71de50
+	github.com/xhit/go-simple-mail/v2 v2.10.0 // indirect
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a // indirect
 	golang.org/x/text v0.3.6 // indirect
 	googlemaps.github.io/maps v1.3.2

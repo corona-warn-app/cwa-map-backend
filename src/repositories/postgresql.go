@@ -7,6 +7,10 @@ import (
 
 const transactionKey = "transactionKey"
 
+type Repository interface {
+	UseTransaction(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
 type postgresqlRepository struct {
 	db *gorm.DB
 }
