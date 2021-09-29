@@ -69,6 +69,9 @@ func (c *CsvParser) Parse(reader io.Reader) ([]ImportCenterResult, error) {
 					// error (EOF) will be catched in the next iteration
 					_, _ = csvReader.Read()
 					break
+				} else if v == "Partner ID" {
+					headerFound = true
+					fieldOffset = i
 				}
 			}
 			continue
@@ -144,8 +147,6 @@ func (c *CsvParser) parseCsvRow(entry []string) ImportCenterResult {
 	var website *string
 	if entry := strings.TrimSpace(entry[websiteIndex]); entry != "" && strings.ToLower(entry) != "null" {
 		website = &entry
-	} else {
-		result.Errors = append(result.Errors, "invalid email address: "+entry)
 	}
 
 	var email *string

@@ -172,6 +172,7 @@ func (EditCenterDTO) MapFromDomain(center domain.Center) EditCenterDTO {
 		UserReference: center.UserReference,
 		Name:          center.Name,
 		Website:       center.Website,
+		Email:         center.Email,
 		Address:       center.Address,
 		OpeningHours:  center.OpeningHours,
 		AddressNote:   center.AddressNote,

@@ -79,7 +79,7 @@ func (r *centersRepository) Delete(ctx context.Context, center domain.Center) er
 
 func (r *centersRepository) FindByUUID(ctx context.Context, uuid string) (domain.Center, error) {
 	var center domain.Center
-	err := r.db.Model(&domain.Center{}).
+	err := r.GetTX(ctx).Model(&domain.Center{}).
 		Preload("Operator").
 		Where("uuid = ?", uuid).
 		First(&center).Error
