@@ -144,8 +144,6 @@ func (c *CsvParser) parseCsvRow(entry []string) ImportCenterResult {
 	var website *string
 	if entry := strings.TrimSpace(entry[websiteIndex]); entry != "" && strings.ToLower(entry) != "null" {
 		website = &entry
-	} else {
-		result.Errors = append(result.Errors, "invalid email address: "+entry)
 	}
 
 	var email *string
