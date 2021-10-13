@@ -1,6 +1,7 @@
 package services
 
 import (
+	"com.t-systems-mms.cwa/core/util"
 	"com.t-systems-mms.cwa/domain"
 	"com.t-systems-mms.cwa/repositories"
 	"context"
@@ -71,12 +72,16 @@ func (s *bugReportsService) CreateBugReport(ctx context.Context, centerUUID, sub
 		return domain.BugReport{}, err
 	}
 
-	email := center.Operator.Email
+	var email *string
 	if center.Operator.BugReportsReceiver != nil && *center.Operator.BugReportsReceiver == "center" {
 		email = center.Email
 	}
 
-	if email == nil {
+	if util.IsNilOrEmpty(email) {
+		email = center.Operator.Email
+	}
+
+	if util.IsNilOrEmpty(email) {
 		if value, err := s.settingsRepository.FindValue(ctx, ConfigDefaultReportsEmail); err != nil {
 			logrus.WithError(err).WithField("key", ConfigDefaultReportsEmail).Error("Error getting config value")
 			return domain.BugReport{}, errors.New("invalid config")

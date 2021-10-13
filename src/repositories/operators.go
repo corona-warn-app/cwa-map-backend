@@ -76,24 +76,26 @@ func (r *operatorsRepository) GetOrCreateByToken(ctx context.Context, token jwt.
 			name = entry.(string)
 		}
 
-		operatorNumber := ""
+		var operatorNumber *string
 		if entry, ok := token.Get("preferred_username"); ok {
-			operatorNumber = entry.(string)
+			tmp := entry.(string)
+			operatorNumber = &tmp
 		}
 
-		email := ""
+		var email *string
 		if entry, ok := token.Get("email"); ok {
-			email = entry.(string)
+			tmp := entry.(string)
+			email = &tmp
 		}
 
 		receiver := domain.ReportReceiverOperator
 		return r.Save(ctx, domain.Operator{
 			UUID:               id.String(),
-			OperatorNumber:     &operatorNumber,
+			OperatorNumber:     operatorNumber,
 			Name:               name,
 			Subject:            &subject,
 			BugReportsReceiver: &receiver,
-			Email:              &email,
+			Email:              email,
 		})
 	}
 	return operator, nil
