@@ -6,6 +6,7 @@ import (
 	"com.t-systems-mms.cwa/repositories"
 	"context"
 	"errors"
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
@@ -110,28 +111,43 @@ func (s *bugReportsService) CreateBugReport(ctx context.Context, centerUUID, sub
 }
 
 func (s *bugReportsService) PublishBugReports(ctx context.Context) error {
-	reports, err := s.bugReportsRepository.FindAll(ctx)
+	leader, err := uuid.NewUUID()
 	if err != nil {
+		return err
+	}
+
+	if err := s.bugReportsRepository.UpdateLeaderForAll(ctx, leader.String()); err != nil {
+		return err
+	}
+
+	reports, err := s.bugReportsRepository.FindAllByLeader(ctx, leader.String())
+	if err != nil {
+		_ = s.bugReportsRepository.ResetLeader(ctx, leader.String())
 		return err
 	}
 
 	// getting template
 	mailTemplateString, err := s.settingsRepository.FindValue(ctx, ConfigReportsEmailTemplate)
 	if err != nil {
+		_ = s.bugReportsRepository.ResetLeader(ctx, leader.String())
 		return err
 	} else if mailTemplateString == nil {
+		_ = s.bugReportsRepository.ResetLeader(ctx, leader.String())
 		return errors.New("missing template")
 	}
 
 	mailSubject, err := s.settingsRepository.FindValue(ctx, ConfigReportsEmailSubject)
 	if err != nil {
+		_ = s.bugReportsRepository.ResetLeader(ctx, leader.String())
 		return err
 	} else if mailSubject == nil {
+		_ = s.bugReportsRepository.ResetLeader(ctx, leader.String())
 		return errors.New("missing subject")
 	}
 
 	mailTemplate, err := template.New("report").Parse(*mailTemplateString)
 	if err != nil {
+		_ = s.bugReportsRepository.ResetLeader(ctx, leader.String())
 		return err
 	}
 
@@ -162,17 +178,19 @@ func (s *bugReportsService) PublishBugReports(ctx context.Context) error {
 			Centers: centers,
 		})
 		if err != nil {
+			_ = s.bugReportsRepository.ResetLeader(ctx, leader.String())
 			return err
 		}
 
 		// sending mail
 		err = s.mailService.SendMail(ctx, receiver, *mailSubject, "text/html", buffer.String())
 		if err != nil {
+			_ = s.bugReportsRepository.ResetLeader(ctx, leader.String())
 			return err
 		}
 
 		// delete reports for this receiver
-		err = s.bugReportsRepository.DeleteByReceiver(ctx, receiver)
+		err = s.bugReportsRepository.DeleteByLeader(ctx, leader.String())
 		if err != nil {
 			return err
 		}

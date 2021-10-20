@@ -14,7 +14,10 @@ type BugReports interface {
 	Save(ctx context.Context, center *domain.BugReport) error
 	FindAll(ctx context.Context) ([]domain.BugReport, error)
 	DeleteAll(ctx context.Context) error
-	DeleteByReceiver(ctx context.Context, receiver string) error
+	DeleteByLeader(ctx context.Context, leader string) error
+	UpdateLeaderForAll(ctx context.Context, leader string) error
+	FindAllByLeader(ctx context.Context, leader string) ([]domain.BugReport, error)
+	ResetLeader(ctx context.Context, leader string) error
 }
 
 type bugReportsRepository struct {
@@ -46,8 +49,22 @@ func (b *bugReportsRepository) DeleteAll(ctx context.Context) error {
 	return b.GetTX(ctx).Exec("DELETE FROM bug_reports").Error
 }
 
-func (b *bugReportsRepository) DeleteByReceiver(ctx context.Context, receiver string) error {
-	return b.GetTX(ctx).Exec("DELETE FROM bug_reports where email = ?", receiver).Error
+func (b *bugReportsRepository) DeleteByLeader(ctx context.Context, leader string) error {
+	return b.GetTX(ctx).Exec("DELETE FROM bug_reports where leader = ?", leader).Error
+}
+
+func (b *bugReportsRepository) UpdateLeaderForAll(ctx context.Context, leader string) error {
+	return b.GetTX(ctx).Exec("UPDATE bug_reports SET leader = ? WHERE leader IS NULL", leader).Error
+}
+
+func (b *bugReportsRepository) FindAllByLeader(ctx context.Context, leader string) ([]domain.BugReport, error) {
+	var reports []domain.BugReport
+	err := b.GetTX(ctx).Where("leader = ?", leader).Find(&reports).Error
+	return reports, err
+}
+
+func (b *bugReportsRepository) ResetLeader(ctx context.Context, leader string) error {
+	return b.GetTX(ctx).Exec("UPDATE bug_reports SET leader = NULL WHERE leader = ?", leader).Error
 }
 
 func (b *bugReportsRepository) FindAll(ctx context.Context) ([]domain.BugReport, error) {

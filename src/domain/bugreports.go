@@ -18,4 +18,5 @@ type BugReport struct {
 	CenterAddress string
 	Subject       string
 	Message       *string
+	Leader        *string
 }
