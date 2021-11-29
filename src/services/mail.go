@@ -4,6 +4,7 @@ import (
 	"context"
 	mail "github.com/xhit/go-simple-mail/v2"
 	"net/smtp"
+	"strings"
 )
 
 type EmailConfig struct {
@@ -53,12 +54,12 @@ func (m *mailService) SendMail(ctx context.Context, receiver, subject, contentTy
 
 	email := mail.NewMSG()
 	email.SetFrom(m.config.From).
-		AddTo(receiver).
+		AddTo(strings.Split(receiver, ";")...).
 		SetSubject(subject).
 		SetBody(contentTypeArg, body)
 
 	if email.Error != nil {
-		return err
+		return email.Error
 	}
 
 	if err := email.Send(smtpClient); err != nil {
