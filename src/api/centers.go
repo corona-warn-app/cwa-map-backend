@@ -72,35 +72,36 @@ func NewCentersAPI(centersService services.Centers, centersRepository repositori
 	}
 
 	// public endpoints
-	centers.Get("/", api.Handle(centers.FindCenters))
-	centers.Get("/bounds", api.Handle(centers.Geocode))
+	centers.Get("/", api.Handle(centers.findCenters))
+	centers.Get("/bounds", api.Handle(centers.geocode))
 	centers.Post("/{uuid}/report", api.Handle(centers.createBugReport))
 
 	centers.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(auth))
 		r.Use(jwtauth.Authenticator)
 
-		r.Get("/all", api.Handle(centers.GetCenters))
-		r.Post("/csv", api.Handle(centers.PrepareCsvImport))
-		r.Post("/", api.Handle(centers.ImportCenters))
+		r.Get("/all", api.Handle(centers.getAllCenters))
+		r.Post("/csv", api.Handle(centers.prepareCSVImport))
+		r.Post("/", api.Handle(centers.importCenters))
 
 		// get centers
-		r.Get("/reference/{reference}", api.Handle(centers.FindCenterByReference))
+		r.Get("/reference/{reference}", api.Handle(centers.getCenterByReference))
+		r.Get("/{uuid}", api.Handle(centers.getCenterByUUID))
 
 		// delete centers
-		r.Delete("/{uuid}", api.Handle(centers.DeleteCenter))
+		r.Delete("/{uuid}", api.Handle(centers.deleteCenterByUUID))
 		r.Delete("/reference/{reference}", api.Handle(centers.deleteCenterByReference))
 
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(api.RequireRole(security.RoleAdmin))
-			r.Get("/csv", centers.AdminGetCentersCSV)
-			r.Post("/geocode", api.Handle(centers.AdminGeocodeAll))
+			r.Get("/csv", centers.exportCentersAsCSV)
+			r.Post("/geocode", api.Handle(centers.geocodeAllCenters))
 		})
 	})
 	return centers
 }
 
-func (c *Centers) Geocode(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+func (c *Centers) geocode(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	geocodeRequestsCounter.Inc()
 	if address, hasAddress := r.URL.Query()["address"]; hasAddress {
 		if util.IsNilOrEmpty(&address[0]) {
@@ -119,7 +120,7 @@ func (c *Centers) Geocode(_ http.ResponseWriter, r *http.Request) (interface{}, 
 	return nil, ErrInvalidParameters
 }
 
-func (c *Centers) FindCenters(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+func (c *Centers) findCenters(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	findCentersRequestsCounter.Inc()
 	if bounds, hasBounds, err := c.getBoundsParameter(r); hasBounds && err == nil {
 		searchParameters := c.getSearchParameters(r)
@@ -145,7 +146,7 @@ func (c *Centers) FindCenters(_ http.ResponseWriter, r *http.Request) (interface
 	}
 }
 
-func (c *Centers) PrepareCsvImport(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+func (c *Centers) prepareCSVImport(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	parser := &services.CsvParser{}
 	result, err := parser.Parse(r.Body)
 	if parseError, isParseError := err.(*csv.ParseError); isParseError {
@@ -160,7 +161,7 @@ func (c *Centers) PrepareCsvImport(_ http.ResponseWriter, r *http.Request) (inte
 	return model.MapToImportCenterResultDTOs(result), nil
 }
 
-func (c *Centers) GetCenters(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+func (c *Centers) getAllCenters(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	operator, err := c.operatorsService.GetCurrentOperator(r.Context())
 	if err != nil {
 		return nil, err
@@ -176,7 +177,7 @@ func (c *Centers) GetCenters(_ http.ResponseWriter, r *http.Request) (interface{
 	}, nil
 }
 
-func (c *Centers) AdminGeocodeAll(_ http.ResponseWriter, _ *http.Request) (interface{}, error) {
+func (c *Centers) geocodeAllCenters(_ http.ResponseWriter, _ *http.Request) (interface{}, error) {
 	centers, err := c.centersRepository.FindAll()
 	if err != nil {
 		return nil, err
@@ -185,7 +186,8 @@ func (c *Centers) AdminGeocodeAll(_ http.ResponseWriter, _ *http.Request) (inter
 	return nil, nil
 }
 
-func (c *Centers) AdminGetCentersCSV(w http.ResponseWriter, r *http.Request) {
+// exportCentersAsCSV exports all centers as csv file
+func (c *Centers) exportCentersAsCSV(w http.ResponseWriter, r *http.Request) {
 	centers, err := c.centersRepository.FindAll()
 	if err != nil {
 		api.WriteError(w, r, err)
@@ -201,7 +203,7 @@ func (c *Centers) AdminGetCentersCSV(w http.ResponseWriter, r *http.Request) {
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Comma = ';'
 
-	if err := csvWriter.Write([]string{"subject", "operator", "uuid", "name", "address", "zip", "region", "dcc", "testkinds", "appointment", "longitude", "latitude", "message"}); err != nil {
+	if err := csvWriter.Write([]string{"operator_subject", "operator_uuid", "operator_name", "uuid", "name", "email", "address", "zip", "region", "dcc", "enter_date", "leave_date", "testkinds", "appointment", "longitude", "latitude", "message"}); err != nil {
 		logrus.WithError(err).Error("Error writing response")
 		return
 	}
@@ -209,17 +211,21 @@ func (c *Centers) AdminGetCentersCSV(w http.ResponseWriter, r *http.Request) {
 	for _, center := range centers {
 		if err := csvWriter.Write([]string{
 			*center.Operator.Subject,
+			center.Operator.UUID,
 			center.Operator.Name,
 			center.UUID,
 			center.Name,
+			util.PtrToString(center.Email, ""),
 			center.Address,
 			util.PtrToString(center.Zip, ""),
-			util.PtrToString(center.Region, ""),
+			geocoding.GetRegionTranslation(center.Region),
 			util.BoolToString(center.DCC, "false"),
+			util.TimeToString(center.EnterDate),
+			util.TimeToString(center.LeaveDate),
 			strings.Join(center.TestKinds, ","),
+			util.PtrToString((*string)(center.Appointment), ""),
 			strconv.FormatFloat(center.Longitude, 'f', 10, 64),
 			strconv.FormatFloat(center.Latitude, 'f', 10, 64),
-			util.PtrToString((*string)(center.Appointment), ""),
 			util.PtrToString(center.Message, ""),
 		}); err != nil {
 			logrus.WithError(err).Error("Error writing response")
@@ -229,7 +235,7 @@ func (c *Centers) AdminGetCentersCSV(w http.ResponseWriter, r *http.Request) {
 	csvWriter.Flush()
 }
 
-func (c *Centers) ImportCenters(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+func (c *Centers) importCenters(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	var importData model.ImportCenterRequest
 	if err := api.ParseRequestBody(r, c.validate, &importData); err != nil {
 		return nil, err
@@ -247,7 +253,28 @@ func (c *Centers) ImportCenters(_ http.ResponseWriter, r *http.Request) (interfa
 	return model.MapToCenterDTOs(result), nil
 }
 
-func (c *Centers) FindCenterByReference(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+// getCenterByUUID returns the center with the given uuid.
+// If the center does not belong to the currently authenticated operator, this method will return an error
+func (c *Centers) getCenterByUUID(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+	uuid := chi.URLParam(r, "uuid")
+	operator, err := c.operatorsService.GetCurrentOperator(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	center, err := c.centersRepository.FindByUUID(r.Context(), uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	if center.OperatorUUID != operator.UUID && !security.HasRole(r.Context(), security.RoleAdmin) {
+		return nil, security.ErrForbidden
+	}
+
+	return model.CenterDTO{}.MapFromDomain(&center), err
+}
+
+func (c *Centers) getCenterByReference(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	reference := chi.URLParam(r, "reference")
 	operator, err := c.operatorsService.GetCurrentOperator(r.Context())
 	if err != nil {
@@ -258,7 +285,7 @@ func (c *Centers) FindCenterByReference(_ http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return nil, err
 	}
-	return center, err
+	return model.CenterDTO{}.MapFromDomain(&center), err
 }
 
 // deleteCenterByReference deletes the center identified by the current operator and the reference.
@@ -289,9 +316,9 @@ func (c *Centers) createBugReport(_ http.ResponseWriter, r *http.Request) (inter
 	return nil, err
 }
 
-func (c *Centers) DeleteCenter(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+func (c *Centers) deleteCenterByUUID(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	centerUUID := chi.URLParam(r, "uuid")
-	logrus.WithField("uuid", centerUUID).Trace("DeleteCenter")
+	logrus.WithField("uuid", centerUUID).Trace("deleteCenterByUUID")
 
 	operator, err := c.operatorsService.GetCurrentOperator(r.Context())
 	if err != nil {
@@ -308,20 +335,6 @@ func (c *Centers) DeleteCenter(_ http.ResponseWriter, r *http.Request) (interfac
 	}
 
 	return nil, c.centersRepository.Delete(r.Context(), center)
-}
-
-func (*Centers) getSearchDistance(r *http.Request, defaultDistance float64) float64 {
-	if distanceParamer, hasDistance := r.URL.Query()["distance"]; hasDistance {
-		if distance, err := strconv.ParseFloat(distanceParamer[0], 64); err == nil {
-			return distance
-		} else {
-			logrus.WithFields(logrus.Fields{
-				"parameter": "distance",
-				"value":     distanceParamer[0],
-			}).WithError(err).Warn("Invalid parameter format")
-		}
-	}
-	return defaultDistance
 }
 
 func (*Centers) getSearchParameters(r *http.Request) repositories.SearchParameters {

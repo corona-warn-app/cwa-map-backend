@@ -1,6 +1,9 @@
 package util
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 func IsNilOrEmpty(value *string) bool {
 	return value == nil || strings.TrimSpace(*value) == ""
@@ -30,6 +33,13 @@ func BoolToString(value *bool, nilValue string) string {
 	} else {
 		return "false"
 	}
+}
+
+func TimeToString(value *time.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.String()
 }
 
 func ArrayContainsOne(arr []string, search ...string) bool {
