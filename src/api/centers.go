@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 	"strings"
@@ -210,7 +211,7 @@ func (c *Centers) exportCentersAsCSV(w http.ResponseWriter, r *http.Request) {
 
 	for _, center := range centers {
 		if err := csvWriter.Write([]string{
-			*center.Operator.Subject,
+			util.PtrToString(center.Operator.Subject, "nil"),
 			center.Operator.UUID,
 			center.Operator.Name,
 			center.UUID,
@@ -268,7 +269,7 @@ func (c *Centers) getCenterByUUID(_ http.ResponseWriter, r *http.Request) (inter
 	}
 
 	if center.OperatorUUID != operator.UUID && !security.HasRole(r.Context(), security.RoleAdmin) {
-		return nil, security.ErrForbidden
+		return nil, gorm.ErrRecordNotFound
 	}
 
 	return model.CenterDTO{}.MapFromDomain(&center), err
@@ -285,7 +286,7 @@ func (c *Centers) getCenterByReference(_ http.ResponseWriter, r *http.Request) (
 	if err != nil {
 		return nil, err
 	}
-	return model.CenterDTO{}.MapFromDomain(&center), err
+	return center, err
 }
 
 // deleteCenterByReference deletes the center identified by the current operator and the reference.
