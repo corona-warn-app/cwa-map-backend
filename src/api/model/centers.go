@@ -41,7 +41,6 @@ type CenterSummaryDTO struct {
 	Appointment  *string         `json:"appointment"`
 	TestKinds    []string        `json:"testKinds"`
 	DCC          *bool           `json:"dcc"`
-	Message      *string         `json:"message"`
 }
 
 type CenterDTO struct {
@@ -49,6 +48,7 @@ type CenterDTO struct {
 	UserReference *string `json:"userReference"`
 	EnterDate     *string `json:"enterDate"`
 	LeaveDate     *string `json:"leaveDate"`
+	Message       *string `json:"message"`
 }
 
 func (CenterSummaryDTO) MapFromDomain(center *domain.Center) *CenterSummaryDTO {
@@ -70,7 +70,6 @@ func (CenterSummaryDTO) MapFromDomain(center *domain.Center) *CenterSummaryDTO {
 		TestKinds:    center.TestKinds,
 		Appointment:  (*string)(center.Appointment),
 		DCC:          center.DCC,
-		Message:      center.Message,
 	}
 
 }
@@ -93,6 +92,7 @@ func (CenterDTO) MapFromDomain(center *domain.Center) *CenterDTO {
 		UserReference:    center.UserReference,
 		EnterDate:        mapDateToString(center.EnterDate),
 		LeaveDate:        mapDateToString(center.LeaveDate),
+		Message:          center.Message,
 	}
 }
 
