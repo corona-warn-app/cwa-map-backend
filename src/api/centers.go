@@ -86,7 +86,8 @@ func NewCentersAPI(centersService services.Centers, centersRepository repositori
 		r.Post("/", api.Handle(centers.importCenters))
 
 		// get centers
-		r.Get("/reference/{reference}", api.Handle(centers.getCenterByReference))
+		r.Get("/reference/{reference}", api.Handle(centers.getCenterByReferenceLegacy))
+		r.Get("/ref/{reference}", api.Handle(centers.getCenterByReference))
 		r.Get("/{uuid}", api.Handle(centers.getCenterByUUID))
 
 		// delete centers
@@ -275,7 +276,7 @@ func (c *Centers) getCenterByUUID(_ http.ResponseWriter, r *http.Request) (inter
 	return model.CenterDTO{}.MapFromDomain(&center), err
 }
 
-func (c *Centers) getCenterByReference(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+func (c *Centers) getCenterByReferenceLegacy(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	reference := chi.URLParam(r, "reference")
 	operator, err := c.operatorsService.GetCurrentOperator(r.Context())
 	if err != nil {
@@ -287,6 +288,20 @@ func (c *Centers) getCenterByReference(_ http.ResponseWriter, r *http.Request) (
 		return nil, err
 	}
 	return center, err
+}
+
+func (c *Centers) getCenterByReference(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+	reference := chi.URLParam(r, "reference")
+	operator, err := c.operatorsService.GetCurrentOperator(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	center, err := c.centersRepository.FindByOperatorAndUserReference(r.Context(), operator.UUID, reference)
+	if err != nil {
+		return nil, err
+	}
+	return model.CenterDTO{}.MapFromDomain(&center), err
 }
 
 // deleteCenterByReference deletes the center identified by the current operator and the reference.
