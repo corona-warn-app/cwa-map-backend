@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"com.t-systems-mms.cwa/api/model"
 	"com.t-systems-mms.cwa/core/api"
+	"com.t-systems-mms.cwa/core/util"
 	"com.t-systems-mms.cwa/repositories"
 	"com.t-systems-mms.cwa/services"
-	"encoding/json"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
+	"github.com/go-playground/validator"
 	"github.com/sirupsen/logrus"
 	"github.com/vincent-petithory/dataurl"
 	"image"
-	"io"
 	"net/http"
 )
 
@@ -20,13 +20,18 @@ type Operators struct {
 	chi.Router
 	operatorsRepository repositories.Operators
 	operatorsService    services.Operators
+	validate            *validator.Validate
 }
 
 func NewOperatorsAPI(operatorsRepository repositories.Operators, operatorsService services.Operators, auth *jwtauth.JWTAuth) *Operators {
+	validate := validator.New()
+	validate.RegisterTagNameFunc(util.JsonTagNameFunc)
+
 	operators := &Operators{
 		Router:              chi.NewRouter(),
 		operatorsService:    operatorsService,
 		operatorsRepository: operatorsRepository,
+		validate:            validate,
 	}
 
 	operators.Get("/{operator}/logo", operators.GetOperatorLogo)
@@ -48,16 +53,15 @@ func (c *Operators) SaveCurrentOperator(w http.ResponseWriter, r *http.Request) 
 		return nil, err
 	}
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
 	request := model.OperatorDTO{}
-	if err := json.Unmarshal(body, &request); err != nil {
+	if err := api.ParseRequestBody(r, c.validate, &request); err != nil {
 		return nil, err
 	}
 
 	operator.Name = request.Name
+	operator.Email = request.Email
+	operator.BugReportsReceiver = request.ReportReceiver
+
 	if request.Logo != nil {
 		data, err := dataurl.DecodeString(*request.Logo)
 		if err != nil {

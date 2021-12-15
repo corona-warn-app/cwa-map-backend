@@ -5,10 +5,11 @@ import "com.t-systems-mms.cwa/domain"
 type OperatorDTO struct {
 	UUID           string  `json:"uuid"`
 	OperatorNumber *string `json:"operatorNumber"`
-	Name           string  `json:"name"`
-	Email          *string `json:"email"`
+	Name           string  `json:"name" validate:"required"`
+	Email          *string `json:"email" validate:"email"`
 	Logo           *string `json:"logo"`
 	MarkerIcon     *string `json:"markerIcon"`
+	ReportReceiver *string `json:"reportReceiver" validate:"oneof=operator center"`
 }
 
 func MapToOperatorDTO(operator *domain.Operator) *OperatorDTO {
@@ -35,5 +36,6 @@ func MapToOperatorDTO(operator *domain.Operator) *OperatorDTO {
 		Logo:           logo,
 		MarkerIcon:     markerIcon,
 		Email:          operator.Email,
+		ReportReceiver: operator.BugReportsReceiver,
 	}
 }

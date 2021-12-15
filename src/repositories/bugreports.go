@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+type ReportStatistics struct {
+	Subject string
+	Count   uint
+}
+
 type BugReports interface {
 	Repository
 	Save(ctx context.Context, center *domain.BugReport) error
@@ -18,6 +23,9 @@ type BugReports interface {
 	UpdateLeaderForAll(ctx context.Context, leader string) error
 	FindAllByLeader(ctx context.Context, leader string) ([]domain.BugReport, error)
 	ResetLeader(ctx context.Context, leader string) error
+
+	IncrementReportCount(ctx context.Context, subject string) error
+	GetStatistics(ctx context.Context) ([]ReportStatistics, error)
 }
 
 type bugReportsRepository struct {
@@ -71,4 +79,20 @@ func (b *bugReportsRepository) FindAll(ctx context.Context) ([]domain.BugReport,
 	var reports []domain.BugReport
 	err := b.GetTX(ctx).Find(&reports).Error
 	return reports, err
+}
+
+func (b *bugReportsRepository) IncrementReportCount(ctx context.Context, subject string) error {
+	return b.GetTX(ctx).Exec("insert into report_statistics (subject, count)"+
+		"VALUES (?, 1)"+
+		"on conflict (subject) "+
+		"do update set count = report_statistics.count + 1", subject).Error
+}
+
+func (b *bugReportsRepository) GetStatistics(ctx context.Context) ([]ReportStatistics, error) {
+	var statistics []ReportStatistics
+	err := b.GetTX(ctx).
+		Raw("select * from report_statistics").
+		Scan(&statistics).Error
+
+	return statistics, err
 }

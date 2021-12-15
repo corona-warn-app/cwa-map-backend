@@ -96,6 +96,7 @@ func main() {
 	router := chi.NewRouter()
 	router.Use(middleware.DefaultLogger)
 	router.Handle("/metrics", initMetricsHandler(centersRepository, operatorsRepository))
+	router.Mount("/api/statistics", api.NewStatisticsAPI(bugReportsRepository, tokenAuth))
 	router.Mount("/api/centers", api.NewCentersAPI(centersService, centersRepository, bugReportsService, operatorsService, geocoder, tokenAuth))
 	router.Mount("/api/operators", api.NewOperatorsAPI(operatorsRepository, operatorsService, tokenAuth))
 

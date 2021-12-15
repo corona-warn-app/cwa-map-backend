@@ -62,6 +62,9 @@ type Centers struct {
 func NewCentersAPI(centersService services.Centers, centersRepository repositories.Centers,
 	bugReportsService services.BugReports,
 	operatorsService services.Operators, geocoder geocoding.Geocoder, auth *jwtauth.JWTAuth) *Centers {
+	validate := validator.New()
+	validate.RegisterTagNameFunc(util.JsonTagNameFunc)
+
 	centers := &Centers{
 		Router:            chi.NewRouter(),
 		centersService:    centersService,
@@ -69,7 +72,7 @@ func NewCentersAPI(centersService services.Centers, centersRepository repositori
 		operatorsService:  operatorsService,
 		geocoder:          geocoder,
 		bugReportsService: bugReportsService,
-		validate:          validator.New(),
+		validate:          validate,
 	}
 
 	// public endpoints
@@ -84,6 +87,7 @@ func NewCentersAPI(centersService services.Centers, centersRepository repositori
 		r.Get("/all", api.Handle(centers.getAllCenters))
 		r.Post("/csv", api.Handle(centers.prepareCSVImport))
 		r.Post("/", api.Handle(centers.importCenters))
+		r.Put("/{uuid}", api.Handle(centers.updateCenter))
 
 		// get centers
 		r.Get("/reference/{reference}", api.Handle(centers.getCenterByReferenceLegacy))
@@ -245,7 +249,7 @@ func (c *Centers) importCenters(_ http.ResponseWriter, r *http.Request) (interfa
 
 	centers := make([]domain.Center, len(importData.Centers))
 	for i, center := range importData.Centers {
-		centers[i] = center.MapToDomain()
+		centers[i] = *center.MapToDomain()
 	}
 
 	result, err := c.centersService.ImportCenters(r.Context(), centers, importData.DeleteAll)
@@ -255,16 +259,46 @@ func (c *Centers) importCenters(_ http.ResponseWriter, r *http.Request) (interfa
 	return model.MapToCenterDTOs(result), nil
 }
 
-// getCenterByUUID returns the center with the given uuid.
-// If the center does not belong to the currently authenticated operator, this method will return an error
-func (c *Centers) getCenterByUUID(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
-	uuid := chi.URLParam(r, "uuid")
+func (c *Centers) updateCenter(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+	centerUUID := chi.URLParam(r, "uuid")
+	logrus.WithField("uuid", centerUUID).Trace("updateCenter")
+
 	operator, err := c.operatorsService.GetCurrentOperator(r.Context())
 	if err != nil {
 		return nil, err
 	}
 
-	center, err := c.centersRepository.FindByUUID(r.Context(), uuid)
+	center, err := c.centersRepository.FindByUUID(r.Context(), centerUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	if center.OperatorUUID != operator.UUID && !security.HasRole(r.Context(), security.RoleAdmin) {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	var editCenterDTO model.EditCenterDTO
+	if err := api.ParseRequestBody(r, c.validate, &editCenterDTO); err != nil {
+		return nil, err
+	}
+
+	editCenterDTO.CopyToDomain(&center)
+	if err = c.centersService.Save(r.Context(), &center, true); err != nil {
+		return nil, err
+	}
+	return model.CenterDTO{}.MapFromDomain(&center), nil
+}
+
+// getCenterByUUID returns the center with the given uuid.
+// If the center does not belong to the currently authenticated operator, this method will return an error
+func (c *Centers) getCenterByUUID(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+	centerUUID := chi.URLParam(r, "uuid")
+	operator, err := c.operatorsService.GetCurrentOperator(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	center, err := c.centersRepository.FindByUUID(r.Context(), centerUUID)
 	if err != nil {
 		return nil, err
 	}

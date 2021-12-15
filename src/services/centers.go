@@ -41,12 +41,15 @@ type centersService struct {
 }
 
 func NewCentersService(centersRepository repositories.Centers, operators repositories.Operators, operatorsService Operators, geocoder geocoding.Geocoder) Centers {
+	validate := validator.New()
+	validate.RegisterTagNameFunc(util.JsonTagNameFunc)
+
 	return &centersService{
 		centersRepository: centersRepository,
 		operators:         operators,
 		operatorsService:  operatorsService,
 		geocoder:          geocoder,
-		validate:          validator.New(),
+		validate:          validate,
 	}
 }
 

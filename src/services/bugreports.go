@@ -106,6 +106,14 @@ func (s *bugReportsService) CreateBugReport(ctx context.Context, centerUUID, sub
 	}
 
 	err = s.bugReportsRepository.Save(ctx, &report)
+	if err != nil {
+		logrus.WithError(err).Error("Error creating bug report")
+	}
+
+	if err := s.bugReportsRepository.IncrementReportCount(ctx, report.Subject); err != nil {
+		logrus.WithError(err).Error("Error updating report statistics")
+	}
+
 	createdBugReportsCount.Inc()
 	return report, err
 }

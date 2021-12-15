@@ -136,35 +136,35 @@ type EditCenterDTO struct {
 	Note          *string  `json:"note"`
 }
 
-func (c EditCenterDTO) MapToDomain() domain.Center {
-	var enterDate *time.Time
+func (c EditCenterDTO) CopyToDomain(dst *domain.Center) *domain.Center {
 	if c.EnterDate != nil {
 		if date, err := time.Parse("02.01.2006", *c.EnterDate); err == nil {
-			enterDate = &date
+			dst.EnterDate = &date
 		}
 	}
 
-	var leaveDate *time.Time
 	if c.LeaveDate != nil {
 		if date, err := time.Parse("02.01.2006", *c.LeaveDate); err == nil {
-			leaveDate = &date
+			dst.LeaveDate = &date
 		}
 	}
 
-	return domain.Center{
-		UserReference: c.UserReference,
-		Name:          c.Name,
-		Website:       c.Website,
-		Address:       c.Address,
-		AddressNote:   c.AddressNote,
-		OpeningHours:  c.OpeningHours,
-		Appointment:   (*domain.AppointmentType)(c.Appointment),
-		TestKinds:     c.TestKinds,
-		DCC:           c.DCC,
-		EnterDate:     enterDate,
-		LeaveDate:     leaveDate,
-		Email:         c.Email,
-	}
+	dst.UserReference = c.UserReference
+	dst.Name = c.Name
+	dst.Website = c.Website
+	dst.Address = c.Address
+	dst.AddressNote = c.AddressNote
+	dst.OpeningHours = c.OpeningHours
+	dst.Appointment = (*domain.AppointmentType)(c.Appointment)
+	dst.TestKinds = c.TestKinds
+	dst.DCC = c.DCC
+	dst.Email = c.Email
+
+	return dst
+}
+
+func (c EditCenterDTO) MapToDomain() *domain.Center {
+	return c.CopyToDomain(&domain.Center{})
 }
 
 func (EditCenterDTO) MapFromDomain(center domain.Center) EditCenterDTO {
