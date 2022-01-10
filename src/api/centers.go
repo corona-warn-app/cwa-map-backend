@@ -209,7 +209,7 @@ func (c *Centers) exportCentersAsCSV(w http.ResponseWriter, r *http.Request) {
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Comma = ';'
 
-	if err := csvWriter.Write([]string{"operator_subject", "operator_uuid", "operator_name", "uuid", "name", "email", "address", "zip", "region", "dcc", "enter_date", "leave_date", "testkinds", "appointment", "longitude", "latitude", "message"}); err != nil {
+	if err := csvWriter.Write([]string{"operator_subject", "operator_uuid", "operator_name", "operator_number", "uuid", "name", "email", "address", "zip", "region", "dcc", "enter_date", "leave_date", "testkinds", "appointment", "longitude", "latitude", "message"}); err != nil {
 		logrus.WithError(err).Error("Error writing response")
 		return
 	}
@@ -219,6 +219,7 @@ func (c *Centers) exportCentersAsCSV(w http.ResponseWriter, r *http.Request) {
 			util.PtrToString(center.Operator.Subject, "nil"),
 			center.Operator.UUID,
 			center.Operator.Name,
+			util.PtrToString(center.Operator.OperatorNumber, ""),
 			center.UUID,
 			center.Name,
 			util.PtrToString(center.Email, ""),
