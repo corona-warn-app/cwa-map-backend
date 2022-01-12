@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"math/rand"
+	"time"
 )
 
 type ImportCenterResult struct {
@@ -83,6 +84,9 @@ func (s *centersService) Save(ctx context.Context, center *domain.Center, geocod
 
 	center.OperatorUUID = operator.UUID
 	center.Ranking = rand.Float64()
+
+	tmpNow := time.Now()
+	center.LastUpdate = &tmpNow
 	if err := s.centersRepository.Save(ctx, center); err == nil {
 		if geocoding {
 			return s.GeocodeCenter(ctx, center)

@@ -22,6 +22,11 @@ var (
 		Help: "The count of centers with dcc enabled",
 	})
 
+	invisibleCentersCount = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "cwa_map_invisible_centers_count",
+		Help: "The count of invisible centers",
+	})
+
 	operatorsCount = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "cwa_map_partners_count",
 		Help: "The count of partners",
@@ -42,6 +47,7 @@ func recordMetrics(centers repositories.Centers, operators repositories.Operator
 		} else {
 			centersCount.Set(float64(centerStats.TotalCount))
 			dccCentersCount.Set(float64(centerStats.DccCount))
+			invisibleCentersCount.Set(float64(centerStats.InvisibleCount))
 		}
 
 		operatorStats, err := operators.FindStatistics(context.Background())

@@ -30,6 +30,7 @@ const (
 	websiteIndex       = 16
 	dccIndex           = 17
 	noteIndex          = 18
+	visibleIndex       = 19
 
 	expectedFieldCount = 19
 )
@@ -179,6 +180,11 @@ func (c *CsvParser) parseCsvRow(entry []string) ImportCenterResult {
 		}
 	}
 
+	var visible = true
+	if len(entry) > visibleIndex {
+		visible = strings.ToLower(strings.TrimSpace(entry[visibleIndex])) == "ja"
+	}
+
 	result.Center = domain.Center{
 		UserReference: userReference,
 		Name:          strings.TrimSpace(entry[nameIndex]),
@@ -196,6 +202,7 @@ func (c *CsvParser) parseCsvRow(entry []string) ImportCenterResult {
 		EnterDate:    enterDate,
 		LeaveDate:    leaveDate,
 		DCC:          &dcc,
+		Visible:      &visible,
 	}
 
 	return result

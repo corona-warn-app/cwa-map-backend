@@ -82,6 +82,8 @@ type Center struct {
 	Zip          *string
 	Region       *string
 	Email        *string `validate:"omitempty,email"`
+	Visible      *bool
+	LastUpdate   *time.Time
 }
 
 type CenterWithDistance struct {

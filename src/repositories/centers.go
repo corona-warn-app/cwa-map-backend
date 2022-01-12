@@ -25,8 +25,9 @@ type PagedCentersResult struct {
 }
 
 type CenterStatistics struct {
-	TotalCount int
-	DccCount   int
+	TotalCount     int
+	DccCount       int
+	InvisibleCount int
 }
 
 type Centers interface {
@@ -168,6 +169,7 @@ func (r *centersRepository) FindByBounds(ctx context.Context, target domain.Boun
 			goqu.I("leave_date").IsNull(),
 			goqu.I("leave_date").Gte(time.Now()),
 		),
+		goqu.I("visible").IsNotFalse(),
 	)
 
 	if params.DCC != nil && *params.DCC {
@@ -219,7 +221,7 @@ func (r *centersRepository) FindByOperatorAndUserReference(ctx context.Context, 
 func (r *centersRepository) FindStatistics(ctx context.Context) (CenterStatistics, error) {
 	var statistics CenterStatistics
 	err := r.GetTX(ctx).
-		Raw("select (select count(*) from centers) as total_count, (select count(*) from centers where dcc = true) as dcc_count").
+		Raw("select (select count(*) from centers) as total_count, (select count(*) from centers where dcc = true) as dcc_count, (select count(*) from centers where visible != true) as invisible_count").
 		First(&statistics).Error
 
 	return statistics, err

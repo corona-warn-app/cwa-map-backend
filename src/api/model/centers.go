@@ -49,6 +49,7 @@ type CenterDTO struct {
 	EnterDate     *string `json:"enterDate"`
 	LeaveDate     *string `json:"leaveDate"`
 	Message       *string `json:"message"`
+	Visible       *bool   `json:"visible"`
 }
 
 func (CenterSummaryDTO) MapFromDomain(center *domain.Center) *CenterSummaryDTO {
@@ -93,6 +94,7 @@ func (CenterDTO) MapFromDomain(center *domain.Center) *CenterDTO {
 		EnterDate:        mapDateToString(center.EnterDate),
 		LeaveDate:        mapDateToString(center.LeaveDate),
 		Message:          center.Message,
+		Visible:          center.Visible,
 	}
 }
 
@@ -134,6 +136,7 @@ type EditCenterDTO struct {
 	EnterDate     *string  `json:"enterDate"`
 	LeaveDate     *string  `json:"leaveDate"`
 	Note          *string  `json:"note"`
+	Visible       *bool    `json:"visible"`
 }
 
 func (c EditCenterDTO) CopyToDomain(dst *domain.Center) *domain.Center {
@@ -159,6 +162,11 @@ func (c EditCenterDTO) CopyToDomain(dst *domain.Center) *domain.Center {
 	dst.TestKinds = c.TestKinds
 	dst.DCC = c.DCC
 	dst.Email = c.Email
+	dst.Visible = c.Visible
+	if dst.Visible == nil {
+		tmpTrue := true
+		dst.Visible = &tmpTrue
+	}
 
 	return dst
 }
@@ -181,6 +189,7 @@ func (EditCenterDTO) MapFromDomain(center domain.Center) EditCenterDTO {
 		DCC:           center.DCC,
 		EnterDate:     mapDateToString(center.EnterDate),
 		LeaveDate:     mapDateToString(center.LeaveDate),
+		Visible:       center.Visible,
 	}
 }
 
