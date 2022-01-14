@@ -141,13 +141,15 @@ type EditCenterDTO struct {
 }
 
 func (c EditCenterDTO) CopyToDomain(dst *domain.Center) *domain.Center {
+	dst.EnterDate = nil
 	if util.IsNotNilOrEmpty(c.EnterDate) {
 		if date, err := time.Parse("02.01.2006", *c.EnterDate); err == nil {
 			dst.EnterDate = &date
 		}
 	}
 
-	if util.IsNotNilOrEmpty(c.EnterDate) {
+	dst.LeaveDate = nil
+	if util.IsNotNilOrEmpty(c.LeaveDate) {
 		if date, err := time.Parse("02.01.2006", *c.LeaveDate); err == nil {
 			dst.LeaveDate = &date
 		}
