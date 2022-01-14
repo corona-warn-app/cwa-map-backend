@@ -2,6 +2,7 @@ package model
 
 import (
 	"com.t-systems-mms.cwa/core/api"
+	"com.t-systems-mms.cwa/core/util"
 	"com.t-systems-mms.cwa/domain"
 	"com.t-systems-mms.cwa/services"
 	"time"
@@ -140,13 +141,13 @@ type EditCenterDTO struct {
 }
 
 func (c EditCenterDTO) CopyToDomain(dst *domain.Center) *domain.Center {
-	if c.EnterDate != nil {
+	if util.IsNotNilOrEmpty(c.EnterDate) {
 		if date, err := time.Parse("02.01.2006", *c.EnterDate); err == nil {
 			dst.EnterDate = &date
 		}
 	}
 
-	if c.LeaveDate != nil {
+	if util.IsNotNilOrEmpty(c.EnterDate) {
 		if date, err := time.Parse("02.01.2006", *c.LeaveDate); err == nil {
 			dst.LeaveDate = &date
 		}
