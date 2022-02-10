@@ -18,7 +18,7 @@
   <a href="#licensing">Licensing</a>
 </p>
 
-The goal of this project is providing an interface to the users to find Covid-19 testcenters in their region.
+The goal of this project is providing an interface to the users to find COVID-19 testcenters in their region.
 
 ## About this component
 
