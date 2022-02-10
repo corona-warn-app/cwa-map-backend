@@ -22,7 +22,7 @@ The goal of this project is providing an interface to the users to find Covid-19
 
 ## About this component
 
-The cwa-map-backend component provides the public frontend for searching testcenters by their attributes, including location or test capabilities.
+The cwa-map-backend component provides the api for searching testcenters by their attributes, including location or test capabilities.
 
 ## Development
 This component can be locally build in order to test the functionality of the interfaces and verify the concepts it is built upon.
