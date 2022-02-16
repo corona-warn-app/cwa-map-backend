@@ -185,7 +185,7 @@ func (c *CsvParser) parseCsvRow(entry []string) ImportCenterResult {
 
 	var enterDate *time.Time
 	if dateEntry := strings.TrimSpace(entry[enterDateIndex]); dateEntry != "" {
-		if date, err := time.Parse("02.01.2006", dateEntry); err == nil {
+		if date, err := time.Parse("_2._1.2006", dateEntry); err == nil {
 			enterDate = &date
 		} else {
 			result.Errors = append(result.Errors, "invalid date: "+dateEntry)
@@ -194,7 +194,7 @@ func (c *CsvParser) parseCsvRow(entry []string) ImportCenterResult {
 
 	var leaveDate *time.Time
 	if dateEntry := strings.TrimSpace(entry[leaveDateIndex]); dateEntry != "" {
-		if date, err := time.Parse("02.01.2006", dateEntry); err == nil {
+		if date, err := time.Parse("_2._1.2006", dateEntry); err == nil {
 			leaveDate = &date
 		} else {
 			result.Errors = append(result.Errors, "invalid date: "+dateEntry)
