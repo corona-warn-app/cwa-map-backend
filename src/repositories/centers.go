@@ -61,7 +61,7 @@ type Centers interface {
 	// FindByOperatorAndUserReference find the center for the given operator und user reference
 	FindByOperatorAndUserReference(ctx context.Context, operator, number string) (domain.Center, error)
 
-	FindByOperator(ctx context.Context, operator string, page PageRequest) (PagedCentersResult, error)
+	FindByOperator(ctx context.Context, operator string, search string, page PageRequest) (PagedCentersResult, error)
 
 	// Save persists the given center
 	Save(ctx context.Context, center *domain.Center) error
@@ -146,10 +146,14 @@ func (r *centersRepository) SaveMultiple(ctx context.Context, centers []domain.C
 	return result, err
 }
 
-func (r *centersRepository) FindByOperator(ctx context.Context, operator string, page PageRequest) (PagedCentersResult, error) {
+func (r *centersRepository) FindByOperator(ctx context.Context, operator string, search string, page PageRequest) (PagedCentersResult, error) {
 	baseQuery := r.db.Model(&domain.Center{}).
-		Where("operator_uuid = ?", operator).
-		Order("user_reference")
+		Where("operator_uuid = ?", operator)
+
+	if search != "" {
+		baseQuery.Where("name ilike ? or address ilike ?", "%"+search+"%", "%"+search+"%")
+	}
+	baseQuery = baseQuery.Order("user_reference")
 
 	result := PagedCentersResult{}
 	if err := baseQuery.Count(&result.Count).Error; err != nil {

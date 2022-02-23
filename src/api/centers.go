@@ -179,7 +179,7 @@ func (c *Centers) prepareCSVImport(_ http.ResponseWriter, r *http.Request) (inte
 	if parseError, isParseError := err.(*csv.ParseError); isParseError {
 		return nil, api.HandlerError{
 			Status: http.StatusBadRequest,
-			Err:    parseError.Error(),
+			Err:    parseError.Unwrap().Error(),
 		}
 	} else if err != nil {
 		return nil, err
@@ -194,7 +194,12 @@ func (c *Centers) getAllCenters(_ http.ResponseWriter, r *http.Request) (interfa
 		return nil, err
 	}
 
-	centers, err := c.centersRepository.FindByOperator(r.Context(), operator.UUID, repositories.ParsePageRequest(r))
+	searchString := ""
+	if value, ok := r.URL.Query()["search"]; ok {
+		searchString = value[0]
+	}
+
+	centers, err := c.centersRepository.FindByOperator(r.Context(), operator.UUID, searchString, repositories.ParsePageRequest(r))
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +235,7 @@ func (c *Centers) exportCentersAsCSV(w http.ResponseWriter, r *http.Request) {
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Comma = ';'
 
-	if err := csvWriter.Write([]string{"operator_subject", "operator_uuid", "operator_name", "operator_number", "uuid", "name", "email", "address", "zip", "region", "dcc", "enter_date", "leave_date", "testkinds", "appointment", "longitude", "latitude", "message", "last_update", "visible"}); err != nil {
+	if err := csvWriter.Write([]string{"partner_subject", "partner_uuid", "partner_name", "partner_number", "user_reference", "operator_name", "lab_id", "center_uuid", "center_name", "email", "address", "zip", "region", "dcc", "enter_date", "leave_date", "testkinds", "appointment", "longitude", "latitude", "message", "last_update", "visible"}); err != nil {
 		logrus.WithError(err).Error("Error writing response")
 		return
 	}
@@ -241,6 +246,9 @@ func (c *Centers) exportCentersAsCSV(w http.ResponseWriter, r *http.Request) {
 			center.Operator.UUID,
 			center.Operator.Name,
 			util.PtrToString(center.Operator.OperatorNumber, ""),
+			util.PtrToString(center.UserReference, ""),
+			util.PtrToString(center.OperatorName, ""),
+			util.PtrToString(center.LabId, ""),
 			center.UUID,
 			center.Name,
 			util.PtrToString(center.Email, ""),
