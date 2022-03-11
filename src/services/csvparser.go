@@ -36,24 +36,30 @@ import (
 )
 
 const (
-	userReferenceIndex = 1
-	nameIndex          = 2
-	streetIndex        = 3
-	houseNumberIndex   = 4
-	postalCodeIndex    = 5
-	cityIndex          = 6
-	enterDateIndex     = 8
-	leaveDateIndex     = 9
-	emailIndex         = 12
-	openingHoursIndex  = 13
-	appointmentIndex   = 14
-	testKindsIndex     = 15
-	websiteIndex       = 16
-	dccIndex           = 17
-	noteIndex          = 18
-	visibleIndex       = 19
+	partnerIdIndex     = "Partner ID"
+	userReferenceIndex = "NR."
+	nameIndex          = "Name der Teststelle"
+	operatorNameIndex  = "Name des Betreibers"
+	labIdIndex         = "Lab ID"
+	streetIndex        = "Straße"
+	houseNumberIndex   = "Hausnr."
+	postalCodeIndex    = "PLZ"
+	cityIndex          = "Ort"
+	enterDateIndex     = "Eintrittsdatum"
+	leaveDateIndex     = "Austrittsdatum"
+	emailIndex         = "E-Mail"
+	openingHoursIndex  = "Öffnungszeiten"
+	appointmentIndex   = "Terminbuchung"
+	testKindsIndex     = "Testmöglichkeiten"
+	websiteIndex       = "Webseite"
+	dccIndex           = "Ausstellung eines Dicital Covid Zertifikates (DCC)"
+	noteIndex          = "Adresshinweis"
+	visibleIndex       = "Sichtbar"
+)
 
-	expectedFieldCount = 19
+const (
+	fieldNotFound = -1
+	fieldRequired = -2
 )
 
 type CsvParser struct {
@@ -68,8 +74,29 @@ func (c *CsvParser) Parse(reader io.Reader) ([]ImportCenterResult, error) {
 	csvReader.Comma = ';'
 	csvReader.FieldsPerRecord = -1
 
-	headerFound := false
-	fieldOffset := 0
+	columnMappings := map[string]int{
+		partnerIdIndex:     fieldNotFound,
+		userReferenceIndex: fieldNotFound,
+		nameIndex:          fieldRequired, // required
+		labIdIndex:         fieldNotFound,
+		operatorNameIndex:  fieldNotFound,
+		streetIndex:        fieldRequired, // required
+		houseNumberIndex:   fieldNotFound,
+		postalCodeIndex:    fieldNotFound,
+		cityIndex:          fieldNotFound,
+		enterDateIndex:     fieldNotFound,
+		leaveDateIndex:     fieldNotFound,
+		emailIndex:         fieldRequired, // required
+		openingHoursIndex:  fieldNotFound,
+		appointmentIndex:   fieldNotFound,
+		testKindsIndex:     fieldNotFound,
+		websiteIndex:       fieldNotFound,
+		dccIndex:           fieldNotFound,
+		noteIndex:          fieldNotFound,
+		visibleIndex:       fieldNotFound,
+	}
+
+	headerRows := 0
 	for {
 		entry, err := csvReader.Read()
 		if err == io.EOF {
@@ -81,26 +108,26 @@ func (c *CsvParser) Parse(reader io.Reader) ([]ImportCenterResult, error) {
 			return nil, err
 		}
 
-		if !headerFound {
+		if headerRows < 2 {
+			headerRows = headerRows + 1
 			for i, v := range entry {
-				// Upload template is a bit strange, so we are looking for the "Partner ID" (with newline) for alignment
-				if v == "Partner\nID" {
-					headerFound = true
-					fieldOffset = i
-					// Skip one more line, as we have a two row header
-					// error (EOF) will be catched in the next iteration
-					_, _ = csvReader.Read()
-					break
-				} else if v == "Partner ID" {
-					headerFound = true
-					fieldOffset = i
+				if _, ok := columnMappings[strings.TrimSpace(v)]; ok {
+					columnMappings[strings.TrimSpace(v)] = i
 				}
 			}
-			continue
-		}
 
-		entry = entry[fieldOffset:]
-		if len(entry) < expectedFieldCount {
+			if headerRows == 2 {
+				for k, v := range columnMappings {
+					if v == fieldRequired {
+						return nil, &csv.ParseError{
+							StartLine: 0,
+							Line:      0,
+							Column:    0,
+							Err:       errors.New("column " + k + " not found"),
+						}
+					}
+				}
+			}
 			continue
 		}
 
@@ -120,7 +147,7 @@ func (c *CsvParser) Parse(reader io.Reader) ([]ImportCenterResult, error) {
 		logrus.WithFields(logrus.Fields{
 			"entry": entry,
 		}).Debug("Importing center")
-		center := c.parseCsvRow(entry)
+		center := c.parseCsvRow(entry, columnMappings)
 
 		if err := validate.Struct(center.Center); err != nil {
 			if validationErr, ok := err.(validator.ValidationErrors); ok {
@@ -139,76 +166,115 @@ func (c *CsvParser) Parse(reader io.Reader) ([]ImportCenterResult, error) {
 	return result, nil
 }
 
-func (c *CsvParser) parseCsvRow(entry []string) ImportCenterResult {
+func (c *CsvParser) parseCsvRow(entry []string, columnMappings map[string]int) ImportCenterResult {
 	result := ImportCenterResult{}
+	var err error
 
 	var userReference *string
-	if ref := strings.TrimSpace(entry[userReferenceIndex]); ref != "" {
-		userReference = &ref
+	if index, hasColumn := columnMappings[userReferenceIndex]; hasColumn && index > fieldNotFound {
+		if ref := strings.TrimSpace(entry[index]); ref != "" {
+			userReference = &ref
+		}
 	}
 
-	address, warnings := c.parseAddress(entry)
+	address, warnings := c.parseAddress(entry, columnMappings)
 	if warnings != nil {
 		result.Warnings = append(result.Warnings, warnings...)
 	}
 
-	openingHours := c.parseOpeningHours(strings.TrimSpace(entry[openingHoursIndex]))
-
-	appointment, err := c.parseAppointmentType(entry[appointmentIndex])
-	if err != nil {
-		result.Warnings = append(result.Warnings, err.Error())
+	var openingHours []string
+	if index, hasColumn := columnMappings[openingHoursIndex]; hasColumn && index > fieldNotFound {
+		openingHours = c.parseOpeningHours(strings.TrimSpace(entry[index]))
 	}
 
-	testKinds, err := c.parseTestKinds(entry[testKindsIndex])
-	if err != nil {
-		result.Warnings = append(result.Warnings, err.Error())
-	} else if len(testKinds) == 0 {
-		result.Warnings = append(result.Warnings, "no valid testkinds found")
+	var appointment *domain.AppointmentType
+	if index, hasColumn := columnMappings[appointmentIndex]; hasColumn && index > fieldNotFound {
+		appointment, err = c.parseAppointmentType(entry[index])
+		if err != nil {
+			result.Warnings = append(result.Warnings, err.Error())
+		}
+	}
+
+	var testKinds domain.TestKinds
+	if index, hasColumn := columnMappings[testKindsIndex]; hasColumn && index > fieldNotFound {
+		testKinds, err = c.parseTestKinds(entry[index])
+		if err != nil {
+			result.Warnings = append(result.Warnings, err.Error())
+		} else if len(testKinds) == 0 {
+			result.Warnings = append(result.Warnings, "no valid testkinds found")
+		}
 	}
 
 	var website *string
-	if entry := strings.TrimSpace(entry[websiteIndex]); entry != "" && strings.ToLower(entry) != "null" {
-		website = &entry
+	if index, hasColumn := columnMappings[websiteIndex]; hasColumn && index > fieldNotFound {
+		if entry := strings.TrimSpace(entry[index]); entry != "" && strings.ToLower(entry) != "null" {
+			website = &entry
+		}
 	}
 
 	var email *string
-	if entry := strings.TrimSpace(entry[emailIndex]); entry != "" && strings.ToLower(entry) != "null" {
-		email = &entry
+	if index, hasColumn := columnMappings[emailIndex]; hasColumn && index > fieldNotFound {
+		if entry := strings.TrimSpace(entry[index]); entry != "" && strings.ToLower(entry) != "null" {
+			email = &entry
+		}
 	}
 
-	dcc := strings.ToLower(strings.TrimSpace(entry[dccIndex])) == "ja"
+	dcc := false
+	if index, hasColumn := columnMappings[dccIndex]; hasColumn && index > fieldNotFound {
+		dcc = strings.ToLower(strings.TrimSpace(entry[index])) == "ja"
+	}
 
 	var note *string
-	if entry := strings.TrimSpace(entry[noteIndex]); entry != "" {
-		note = &entry
+	if index, hasColumn := columnMappings[noteIndex]; hasColumn && index > fieldNotFound {
+		if entry := strings.TrimSpace(entry[index]); entry != "" {
+			note = &entry
+		}
 	}
 
 	var enterDate *time.Time
-	if dateEntry := strings.TrimSpace(entry[enterDateIndex]); dateEntry != "" {
-		if date, err := time.Parse("_2._1.2006", dateEntry); err == nil {
-			enterDate = &date
-		} else {
-			result.Errors = append(result.Errors, "invalid date: "+dateEntry)
+	if index, hasColumn := columnMappings[enterDateIndex]; hasColumn && index > fieldNotFound {
+		if dateEntry := strings.TrimSpace(entry[index]); dateEntry != "" {
+			if date, err := time.Parse("_2._1.2006", dateEntry); err == nil {
+				enterDate = &date
+			} else {
+				result.Errors = append(result.Errors, "invalid date: "+dateEntry)
+			}
 		}
 	}
 
 	var leaveDate *time.Time
-	if dateEntry := strings.TrimSpace(entry[leaveDateIndex]); dateEntry != "" {
-		if date, err := time.Parse("_2._1.2006", dateEntry); err == nil {
-			leaveDate = &date
-		} else {
-			result.Errors = append(result.Errors, "invalid date: "+dateEntry)
+	if index, hasColumn := columnMappings[leaveDateIndex]; hasColumn && index > fieldNotFound {
+		if dateEntry := strings.TrimSpace(entry[index]); dateEntry != "" {
+			if date, err := time.Parse("_2._1.2006", dateEntry); err == nil {
+				leaveDate = &date
+			} else {
+				result.Errors = append(result.Errors, "invalid date: "+dateEntry)
+			}
 		}
 	}
 
 	var visible = true
-	if len(entry) > visibleIndex {
-		visible = strings.ToLower(strings.TrimSpace(entry[visibleIndex])) == "ja"
+	if index, hasColumn := columnMappings[visibleIndex]; hasColumn && index > fieldNotFound {
+		visible = strings.ToLower(strings.TrimSpace(entry[index])) == "ja"
+	}
+
+	var operatorName *string
+	if index, hasColumn := columnMappings[operatorNameIndex]; hasColumn && index > fieldNotFound {
+		if entry := strings.TrimSpace(entry[index]); entry != "" {
+			operatorName = &entry
+		}
+	}
+
+	var labId *string
+	if index, hasColumn := columnMappings[labIdIndex]; hasColumn && index > fieldNotFound {
+		if entry := strings.TrimSpace(entry[index]); entry != "" {
+			labId = &entry
+		}
 	}
 
 	result.Center = domain.Center{
 		UserReference: userReference,
-		Name:          strings.TrimSpace(entry[nameIndex]),
+		Name:          strings.TrimSpace(entry[columnMappings[nameIndex]]),
 		Email:         email,
 		Website:       website,
 		Coordinates: domain.Coordinates{
@@ -224,6 +290,8 @@ func (c *CsvParser) parseCsvRow(entry []string) ImportCenterResult {
 		LeaveDate:    leaveDate,
 		DCC:          &dcc,
 		Visible:      &visible,
+		LabId:        labId,
+		OperatorName: operatorName,
 	}
 
 	return result
@@ -244,15 +312,27 @@ func (*CsvParser) parseOpeningHours(entry string) []string {
 	return openingHours
 }
 
-func (*CsvParser) parseAddress(entry []string) (string, []string) {
-	address := strings.TrimSpace(entry[streetIndex])
-	houseNumber := strings.TrimSpace(entry[houseNumberIndex])
-	postalCode := strings.TrimSpace(entry[postalCodeIndex])
+func (*CsvParser) parseAddress(entry []string, columnMappings map[string]int) (string, []string) {
+	address := strings.TrimSpace(entry[columnMappings[streetIndex]])
+
+	houseNumber := ""
+	if index, hasColumn := columnMappings[houseNumberIndex]; hasColumn && index > fieldNotFound {
+		houseNumber = strings.TrimSpace(entry[index])
+	}
+
+	postalCode := ""
+	if index, hasColumn := columnMappings[postalCodeIndex]; hasColumn && index > fieldNotFound {
+		postalCode = strings.TrimSpace(entry[index])
+	}
+
 	if len(postalCode) == 4 {
 		postalCode = "0" + postalCode
 	}
 
-	city := strings.TrimSpace(entry[cityIndex])
+	city := ""
+	if index, hasColumn := columnMappings[cityIndex]; hasColumn && index > fieldNotFound {
+		city = strings.TrimSpace(entry[index])
+	}
 	if houseNumber != "" {
 		address = address + " " + houseNumber
 	}

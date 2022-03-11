@@ -85,7 +85,9 @@ func ParseAppointmentType(value string) (AppointmentType, bool) {
 type Center struct {
 	UUID          string `gorm:"primaryKey"`
 	UserReference *string
-	Name          string  `validate:"required,max=128"`
+	Name          string `validate:"required,max=128"`
+	LabId         *string
+	OperatorName  *string
 	Website       *string `validate:"omitempty,url,max=264"`
 	Coordinates
 	Operator     *Operator `gorm:"foreignKey:OperatorUUID"`
