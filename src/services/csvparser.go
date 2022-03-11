@@ -234,7 +234,7 @@ func (c *CsvParser) parseCsvRow(entry []string, columnMappings map[string]int) I
 	var enterDate *time.Time
 	if index, hasColumn := columnMappings[enterDateIndex]; hasColumn && index > fieldNotFound {
 		if dateEntry := strings.TrimSpace(entry[index]); dateEntry != "" {
-			if date, err := time.Parse("02.01.2006", dateEntry); err == nil {
+			if date, err := time.Parse("_2._1.2006", dateEntry); err == nil {
 				enterDate = &date
 			} else {
 				result.Errors = append(result.Errors, "invalid date: "+dateEntry)
@@ -245,7 +245,7 @@ func (c *CsvParser) parseCsvRow(entry []string, columnMappings map[string]int) I
 	var leaveDate *time.Time
 	if index, hasColumn := columnMappings[leaveDateIndex]; hasColumn && index > fieldNotFound {
 		if dateEntry := strings.TrimSpace(entry[index]); dateEntry != "" {
-			if date, err := time.Parse("02.01.2006", dateEntry); err == nil {
+			if date, err := time.Parse("_2._1.2006", dateEntry); err == nil {
 				leaveDate = &date
 			} else {
 				result.Errors = append(result.Errors, "invalid date: "+dateEntry)
