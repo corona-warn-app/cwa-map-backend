@@ -22,13 +22,17 @@
 package api
 
 import (
-	"com.t-systems-mms.cwa/api/model"
 	"com.t-systems-mms.cwa/core/api"
 	"com.t-systems-mms.cwa/core/security"
+	"com.t-systems-mms.cwa/core/util"
+	"com.t-systems-mms.cwa/domain"
 	"com.t-systems-mms.cwa/repositories"
+	"encoding/csv"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
+	"github.com/sirupsen/logrus"
 	"net/http"
+	"strconv"
 )
 
 type Statistics struct {
@@ -47,20 +51,70 @@ func NewStatisticsAPI(reportsRepository repositories.BugReports, auth *jwtauth.J
 		r.Use(jwtauth.Authenticator)
 		r.Use(api.RequireRole(security.RoleAdmin))
 
-		r.Get("/reports", api.Handle(statistics.getReportStatistics))
+		r.Get("/reports", statistics.getReportStatistics)
 	})
 	return statistics
 }
 
-func (c *Statistics) getReportStatistics(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
+func (c *Statistics) getReportStatistics(w http.ResponseWriter, r *http.Request) {
 	stats, err := c.reportsRepository.GetStatistics(r.Context())
 	if err != nil {
-		return nil, err
+		logrus.WithError(err).Error("Error getting report statistics")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
-	result := make([]model.ReportStatisticsDTO, len(stats))
-	for i, stat := range stats {
-		result[i] = *model.ReportStatisticsDTO{}.FromModel(stat)
+	subjects := make([]string, 0)
+	operators := make(map[string]domain.Operator)
+	data := make(map[string]map[string]uint)
+	for _, value := range stats {
+		knownSubject := false
+		for _, s := range subjects {
+			if s == value.Subject {
+				knownSubject = true
+				break
+			}
+		}
+
+		if !knownSubject {
+			subjects = append(subjects, value.Subject)
+		}
+
+		if _, ok := data[value.OperatorUUID]; !ok {
+			data[value.OperatorUUID] = make(map[string]uint)
+			operators[value.OperatorUUID] = *value.Operator
+		}
+
+		data[value.OperatorUUID][value.Subject] = value.Count
 	}
-	return result, nil
+
+	w.Header().Set("Content-Type", "text/csv")
+	if _, err := w.Write([]byte{0xEF, 0xBB, 0xBF}); err != nil {
+		logrus.WithError(err).Error("Error writing BOM")
+		return
+	}
+
+	csvWriter := csv.NewWriter(w)
+	csvWriter.Comma = ';'
+
+	headers := []string{"partner_uuid", "partner_name", "partner_number"}
+	headers = append(headers, subjects...)
+	if err := csvWriter.Write(headers); err != nil {
+		logrus.WithError(err).Error("Error writing response")
+		return
+	}
+
+	for operator, entry := range data {
+		columns := []string{operator, util.PtrToString(operators[operator].OperatorNumber, ""), operators[operator].Name}
+		for _, subject := range subjects {
+			columns = append(columns, strconv.Itoa(int(entry[subject])))
+		}
+
+		if err := csvWriter.Write(columns); err != nil {
+			logrus.WithError(err).Error("Error writing response")
+			return
+		}
+	}
+
+	csvWriter.Flush()
 }

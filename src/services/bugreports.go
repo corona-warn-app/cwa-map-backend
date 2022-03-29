@@ -132,7 +132,7 @@ func (s *bugReportsService) CreateBugReport(ctx context.Context, centerUUID, sub
 		return report, err
 	}
 
-	if err := s.bugReportsRepository.IncrementReportCount(ctx, report.Subject); err != nil {
+	if err := s.bugReportsRepository.IncrementReportCount(ctx, center.OperatorUUID, report.Subject); err != nil {
 		logrus.WithError(err).Error("Error updating report statistics")
 	}
 

@@ -31,8 +31,10 @@ import (
 )
 
 type ReportStatistics struct {
-	Subject string
-	Count   uint
+	Subject      string
+	OperatorUUID string
+	Operator     *domain.Operator `gorm:"foreignKey:OperatorUUID"`
+	Count        uint
 }
 
 type BugReports interface {
@@ -45,7 +47,7 @@ type BugReports interface {
 	FindAllByLeader(ctx context.Context, leader string) ([]domain.BugReport, error)
 	ResetLeader(ctx context.Context, leader string) error
 
-	IncrementReportCount(ctx context.Context, subject string) error
+	IncrementReportCount(ctx context.Context, operatorUUID, subject string) error
 	GetStatistics(ctx context.Context) ([]ReportStatistics, error)
 }
 
@@ -98,22 +100,25 @@ func (b *bugReportsRepository) ResetLeader(ctx context.Context, leader string) e
 
 func (b *bugReportsRepository) FindAll(ctx context.Context) ([]domain.BugReport, error) {
 	var reports []domain.BugReport
-	err := b.GetTX(ctx).Find(&reports).Error
+	err := b.GetTX(ctx).
+		Find(&reports).Error
 	return reports, err
 }
 
-func (b *bugReportsRepository) IncrementReportCount(ctx context.Context, subject string) error {
-	return b.GetTX(ctx).Exec("insert into report_statistics (subject, count)"+
-		"VALUES (?, 1)"+
-		"on conflict (subject) "+
-		"do update set count = report_statistics.count + 1", subject).Error
+func (b *bugReportsRepository) IncrementReportCount(ctx context.Context, operatorUUID, subject string) error {
+	return b.GetTX(ctx).Exec("insert into report_statistics (operator_uuid, subject, count)"+
+		"VALUES (?, ?, 1)"+
+		"on conflict on constraint report_statistics_pk "+
+		"do update set count = report_statistics.count + 1", operatorUUID, subject).Error
 }
 
 func (b *bugReportsRepository) GetStatistics(ctx context.Context) ([]ReportStatistics, error) {
 	var statistics []ReportStatistics
 	err := b.GetTX(ctx).
-		Raw("select * from report_statistics").
-		Scan(&statistics).Error
+		Preload("Operator").
+		Order("operator_uuid").
+		Find(&statistics).
+		Error
 
 	return statistics, err
 }

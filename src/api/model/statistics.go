@@ -24,12 +24,14 @@ package model
 import "com.t-systems-mms.cwa/repositories"
 
 type ReportStatisticsDTO struct {
-	Subject     string `json:"subject"`
-	ReportCount uint   `json:"report_count"`
+	Operator    *string `json:"operator"`
+	Subject     string  `json:"subject"`
+	ReportCount uint    `json:"report_count"`
 }
 
 func (dto ReportStatisticsDTO) FromModel(model repositories.ReportStatistics) *ReportStatisticsDTO {
 	return &ReportStatisticsDTO{
+		Operator:    model.Operator.OperatorNumber,
 		Subject:     model.Subject,
 		ReportCount: model.Count,
 	}
