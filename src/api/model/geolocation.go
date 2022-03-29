@@ -57,8 +57,8 @@ func (b BoundsDTO) MapFromModel(bounds *domain.Bounds) *BoundsDTO {
 }
 
 type CoordinatesDTO struct {
-	Longitude float64 `json:"longitude"`
-	Latitude  float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
+	Latitude  *float64 `json:"latitude"`
 }
 
 func (c CoordinatesDTO) MapFromModel(coordinates *domain.Coordinates) *CoordinatesDTO {
@@ -66,7 +66,7 @@ func (c CoordinatesDTO) MapFromModel(coordinates *domain.Coordinates) *Coordinat
 		return nil
 	}
 
-	c.Longitude = coordinates.Longitude
-	c.Latitude = coordinates.Latitude
+	c.Longitude = &coordinates.Longitude
+	c.Latitude = &coordinates.Latitude
 	return &c
 }

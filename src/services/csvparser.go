@@ -31,6 +31,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -55,6 +56,8 @@ const (
 	dccIndex           = "Ausstellung eines Dicital Covid Zertifikates (DCC)"
 	noteIndex          = "Adresshinweis"
 	visibleIndex       = "Sichtbar"
+	latitudeIndex      = "Breitengrad"
+	longitudeIndex     = "Längengrad"
 )
 
 const (
@@ -94,6 +97,8 @@ func (c *CsvParser) Parse(reader io.Reader) ([]ImportCenterResult, error) {
 		dccIndex:           fieldNotFound,
 		noteIndex:          fieldNotFound,
 		visibleIndex:       fieldNotFound,
+		latitudeIndex:      fieldNotFound,
+		longitudeIndex:     fieldNotFound,
 	}
 
 	headerRows := 0
@@ -234,7 +239,7 @@ func (c *CsvParser) parseCsvRow(entry []string, columnMappings map[string]int) I
 	var enterDate *time.Time
 	if index, hasColumn := columnMappings[enterDateIndex]; hasColumn && index > fieldNotFound {
 		if dateEntry := strings.TrimSpace(entry[index]); dateEntry != "" {
-			if date, err := time.Parse("_2._1.2006", dateEntry); err == nil {
+			if date, err := time.Parse("_2.1.2006", dateEntry); err == nil {
 				enterDate = &date
 			} else {
 				result.Errors = append(result.Errors, "invalid date: "+dateEntry)
@@ -245,7 +250,7 @@ func (c *CsvParser) parseCsvRow(entry []string, columnMappings map[string]int) I
 	var leaveDate *time.Time
 	if index, hasColumn := columnMappings[leaveDateIndex]; hasColumn && index > fieldNotFound {
 		if dateEntry := strings.TrimSpace(entry[index]); dateEntry != "" {
-			if date, err := time.Parse("_2._1.2006", dateEntry); err == nil {
+			if date, err := time.Parse("_2.1.2006", dateEntry); err == nil {
 				leaveDate = &date
 			} else {
 				result.Errors = append(result.Errors, "invalid date: "+dateEntry)
@@ -272,14 +277,33 @@ func (c *CsvParser) parseCsvRow(entry []string, columnMappings map[string]int) I
 		}
 	}
 
+	var latitude, longitude float64
+	if index, hasColumn := columnMappings[latitudeIndex]; hasColumn && index > fieldNotFound {
+		if entry := strings.TrimSpace(entry[index]); entry != "" {
+			latitude, _ = strconv.ParseFloat(entry, 64)
+		}
+	}
+
+	if index, hasColumn := columnMappings[longitudeIndex]; hasColumn && index > fieldNotFound {
+		if entry := strings.TrimSpace(entry[index]); entry != "" {
+			longitude, _ = strconv.ParseFloat(entry, 64)
+		}
+	}
+
+	fixedCoordinates := false
+	if latitude != 0.0 && longitude != 0.0 {
+		fixedCoordinates = true
+	}
+
 	result.Center = domain.Center{
 		UserReference: userReference,
 		Name:          strings.TrimSpace(entry[columnMappings[nameIndex]]),
 		Email:         email,
 		Website:       website,
 		Coordinates: domain.Coordinates{
-			Longitude: 0,
-			Latitude:  0,
+			Longitude: longitude,
+			Latitude:  latitude,
+			Fixed:     fixedCoordinates,
 		},
 		Address:      address,
 		AddressNote:  note,

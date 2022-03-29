@@ -149,35 +149,36 @@ func MapToCenterDTOs(centers []domain.Center) []CenterDTO {
 }
 
 type EditCenterDTO struct {
-	UserReference *string  `json:"userReference"`
-	Name          string   `json:"name" validate:"required"`
-	Email         *string  `json:"email" validate:"omitempty,email"`
-	Website       *string  `json:"website"`
-	Address       string   `json:"address" validate:"required"`
-	OpeningHours  []string `json:"openingHours" validate:"dive,max=64"`
-	AddressNote   *string  `json:"addressNote"`
-	Appointment   *string  `json:"appointment" validate:"omitempty,oneof=Required NotRequired Possible"`
-	TestKinds     []string `json:"testKinds" validate:"dive,oneof=Antigen PCR Vaccination Antibody"`
-	DCC           *bool    `json:"dcc"`
-	EnterDate     *string  `json:"enterDate"`
-	LeaveDate     *string  `json:"leaveDate"`
-	Note          *string  `json:"note"`
-	Visible       *bool    `json:"visible"`
-	LabId         *string  `json:"labId"`
-	OperatorName  *string  `json:"operatorName"`
+	UserReference *string         `json:"userReference"`
+	Name          string          `json:"name" validate:"required"`
+	Email         *string         `json:"email" validate:"omitempty,email"`
+	Website       *string         `json:"website"`
+	Address       string          `json:"address" validate:"required"`
+	OpeningHours  []string        `json:"openingHours" validate:"dive,max=64"`
+	AddressNote   *string         `json:"addressNote"`
+	Appointment   *string         `json:"appointment" validate:"omitempty,oneof=Required NotRequired Possible"`
+	TestKinds     []string        `json:"testKinds" validate:"dive,oneof=Antigen PCR Vaccination Antibody"`
+	DCC           *bool           `json:"dcc"`
+	EnterDate     *string         `json:"enterDate"`
+	LeaveDate     *string         `json:"leaveDate"`
+	Note          *string         `json:"note"`
+	Visible       *bool           `json:"visible"`
+	LabId         *string         `json:"labId"`
+	OperatorName  *string         `json:"operatorName"`
+	Coordinates   *CoordinatesDTO `json:"coordinates"`
 }
 
 func (c EditCenterDTO) CopyToDomain(dst *domain.Center) *domain.Center {
 	dst.EnterDate = nil
 	if util.IsNotNilOrEmpty(c.EnterDate) {
-		if date, err := time.Parse("02.01.2006", *c.EnterDate); err == nil {
+		if date, err := time.Parse("_2.1.2006", *c.EnterDate); err == nil {
 			dst.EnterDate = &date
 		}
 	}
 
 	dst.LeaveDate = nil
 	if util.IsNotNilOrEmpty(c.LeaveDate) {
-		if date, err := time.Parse("02.01.2006", *c.LeaveDate); err == nil {
+		if date, err := time.Parse("_2.1.2006", *c.LeaveDate); err == nil {
 			dst.LeaveDate = &date
 		}
 	}
@@ -198,6 +199,18 @@ func (c EditCenterDTO) CopyToDomain(dst *domain.Center) *domain.Center {
 	if dst.Visible == nil {
 		tmpTrue := true
 		dst.Visible = &tmpTrue
+	}
+
+	if c.Coordinates != nil &&
+		c.Coordinates.Latitude != nil && *c.Coordinates.Latitude != 0.0 &&
+		c.Coordinates.Longitude != nil && *c.Coordinates.Longitude != 0.0 {
+		dst.Coordinates = domain.Coordinates{
+			Longitude: *c.Coordinates.Longitude,
+			Latitude:  *c.Coordinates.Latitude,
+			Fixed:     true,
+		}
+	} else {
+		dst.Coordinates = domain.Coordinates{Fixed: false}
 	}
 
 	return dst
@@ -224,6 +237,10 @@ func (EditCenterDTO) MapFromDomain(center domain.Center) EditCenterDTO {
 		Visible:       center.Visible,
 		LabId:         center.LabId,
 		OperatorName:  center.OperatorName,
+		Coordinates: &CoordinatesDTO{
+			Longitude: &center.Longitude,
+			Latitude:  &center.Latitude,
+		},
 	}
 }
 

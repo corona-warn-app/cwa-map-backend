@@ -29,4 +29,5 @@ type Bounds struct {
 type Coordinates struct {
 	Longitude float64
 	Latitude  float64
+	Fixed     bool
 }

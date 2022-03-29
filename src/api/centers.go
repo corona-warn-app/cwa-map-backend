@@ -30,6 +30,7 @@ import (
 	"com.t-systems-mms.cwa/external/geocoding"
 	"com.t-systems-mms.cwa/repositories"
 	"com.t-systems-mms.cwa/services"
+	"context"
 	"encoding/csv"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
@@ -209,12 +210,12 @@ func (c *Centers) getAllCenters(_ http.ResponseWriter, r *http.Request) (interfa
 	}, nil
 }
 
-func (c *Centers) geocodeAllCenters(_ http.ResponseWriter, _ *http.Request) (interface{}, error) {
+func (c *Centers) geocodeAllCenters(_ http.ResponseWriter, r *http.Request) (interface{}, error) {
 	centers, err := c.centersRepository.FindAll()
 	if err != nil {
 		return nil, err
 	}
-	go c.centersService.PerformGeocoding(centers)
+	go c.centersService.PerformGeocoding(context.Background(), centers)
 	return nil, nil
 }
 

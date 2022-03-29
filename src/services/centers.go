@@ -51,7 +51,7 @@ var (
 type Centers interface {
 	ImportCenters(ctx context.Context, centers []domain.Center, deleteAll bool) ([]domain.Center, error)
 	Save(ctx context.Context, center *domain.Center, geocoding bool) error
-	PerformGeocoding(centers []domain.Center)
+	PerformGeocoding(ctx context.Context, centers []domain.Center)
 }
 
 type centersService struct {
@@ -150,7 +150,7 @@ func (s *centersService) ImportCenters(ctx context.Context, centers []domain.Cen
 		return nil, err
 	}
 
-	go s.PerformGeocoding(centers)
+	go s.PerformGeocoding(context.Background(), centers)
 	return centers, err
 }
 
@@ -158,7 +158,7 @@ func (s *centersService) GeocodeCenter(ctx context.Context, center *domain.Cente
 	logrus.WithFields(logrus.Fields{
 		"center":  center.UUID,
 		"address": center.Address,
-	}).Trace("Geocoding center")
+	}).Info("Geocoding center")
 
 	g, err := s.geocoder.GetCoordinates(ctx, center.Address)
 	if err != nil {
@@ -177,9 +177,11 @@ func (s *centersService) GeocodeCenter(ctx context.Context, center *domain.Cente
 	} else {
 		center.Zip = &g.Zip
 		center.Region = &g.Region
-		center.Coordinates = domain.Coordinates{
-			Longitude: g.Coordinates.Longitude,
-			Latitude:  g.Coordinates.Latitude,
+		if !center.Coordinates.Fixed {
+			center.Coordinates = domain.Coordinates{
+				Longitude: g.Coordinates.Longitude,
+				Latitude:  g.Coordinates.Latitude,
+			}
 		}
 	}
 
@@ -190,7 +192,7 @@ func (s *centersService) GeocodeCenter(ctx context.Context, center *domain.Cente
 	return err
 }
 
-func (s *centersService) PerformGeocoding(centers []domain.Center) {
+func (s *centersService) PerformGeocoding(ctx context.Context, centers []domain.Center) {
 	logrus.WithFields(logrus.Fields{
 		"count": len(centers),
 	}).Info("Starting geocoding of importet centers")
@@ -206,33 +208,7 @@ func (s *centersService) PerformGeocoding(centers []domain.Center) {
 			continue
 		}
 
-		g, err := s.geocoder.GetCoordinates(context.Background(), center.Address)
-		if err != nil {
-			logrus.
-				WithFields(logrus.Fields{
-					"center":  center.UUID,
-					"address": center.Address,
-				}).
-				WithError(err).
-				Error("Error geocoding center")
-
-			if err == geocoding.ErrTooManyResults || err == geocoding.ErrNoResult {
-				msg := fmt.Sprintf("Geocoding: %s", err.Error())
-				center.Message = &msg
-			}
-		} else {
-			center.Zip = &g.Zip
-			center.Region = &g.Region
-			center.Coordinates = domain.Coordinates{
-				Longitude: g.Coordinates.Longitude,
-				Latitude:  g.Coordinates.Latitude,
-			}
-		}
-
-		err = s.centersRepository.Save(context.Background(), &center)
-		if err != nil {
-			logrus.WithError(err).Error("Error saving center")
-		}
+		_ = s.GeocodeCenter(ctx, &center)
 	}
 	logrus.WithFields(logrus.Fields{
 		"count": len(centers),
