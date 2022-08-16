@@ -36,19 +36,22 @@ type OperatorsStatistics struct {
 }
 
 type Operators interface {
+	Repository
 	FindById(ctx context.Context, id string) (domain.Operator, error)
 	GetOrCreateByToken(ctx context.Context, subject jwt.Token) (domain.Operator, error)
 	Save(ctx context.Context, operator domain.Operator) (domain.Operator, error)
 	FindStatistics(ctx context.Context) (OperatorsStatistics, error)
+	FindAll(ctx context.Context) ([]domain.Operator, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type operatorsRepository struct {
-	db *gorm.DB
+	postgresqlRepository
 }
 
 func NewOperatorsRepository(db *gorm.DB) Operators {
 	return &operatorsRepository{
-		db: db,
+		postgresqlRepository{db: db},
 	}
 }
 
@@ -128,4 +131,18 @@ func (r *operatorsRepository) FindStatistics(ctx context.Context) (OperatorsStat
 		First(&statistics).
 		Error
 	return statistics, err
+}
+
+func (r *operatorsRepository) FindAll(ctx context.Context) ([]domain.Operator, error) {
+	var result []domain.Operator
+	err := r.db.
+		Model(&domain.Operator{}).
+		Order("uuid").
+		Find(&result).Error
+
+	return result, err
+}
+
+func (r *operatorsRepository) Delete(ctx context.Context, id string) error {
+	return r.GetTX(ctx).Exec("DELETE FROM operators WHERE uuid = ?", id).Error
 }

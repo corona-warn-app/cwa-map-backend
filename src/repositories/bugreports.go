@@ -37,6 +37,15 @@ type ReportStatistics struct {
 	Count        uint
 }
 
+type ReportCenterStatistics struct {
+	Subject      string
+	OperatorUUID string
+	Operator     *domain.Operator `gorm:"foreignKey:OperatorUUID"`
+	CenterUUID   string
+	Center       *domain.Center `gorm:"foreignKey:CenterUUID"`
+	Count        uint
+}
+
 type BugReports interface {
 	Repository
 	Save(ctx context.Context, center *domain.BugReport) error
@@ -47,8 +56,9 @@ type BugReports interface {
 	FindAllByLeader(ctx context.Context, leader string) ([]domain.BugReport, error)
 	ResetLeader(ctx context.Context, leader string) error
 
-	IncrementReportCount(ctx context.Context, operatorUUID, subject string) error
+	IncrementReportCount(ctx context.Context, operatorUUID, centerUUID, subject string) error
 	GetStatistics(ctx context.Context) ([]ReportStatistics, error)
+	GetCenterStatistics(ctx context.Context) ([]ReportCenterStatistics, error)
 }
 
 type bugReportsRepository struct {
@@ -105,17 +115,38 @@ func (b *bugReportsRepository) FindAll(ctx context.Context) ([]domain.BugReport,
 	return reports, err
 }
 
-func (b *bugReportsRepository) IncrementReportCount(ctx context.Context, operatorUUID, subject string) error {
-	return b.GetTX(ctx).Exec("insert into report_statistics (operator_uuid, subject, count)"+
+func (b *bugReportsRepository) IncrementReportCount(ctx context.Context, operatorUUID, centerUUID, subject string) error {
+	err := b.GetTX(ctx).Exec("insert into report_statistics (operator_uuid, subject, count) "+
 		"VALUES (?, ?, 1)"+
 		"on conflict on constraint report_statistics_pk "+
 		"do update set count = report_statistics.count + 1", operatorUUID, subject).Error
+
+	if err != nil {
+		return err
+	}
+
+	return b.GetTX(ctx).Exec("insert into report_center_statistics (operator_uuid, center_uuid, subject, count) "+
+		"VALUES (?, ?, ?, 1)"+
+		"on conflict on constraint report_center_statistics_pk "+
+		"do update set count = report_center_statistics.count + 1", operatorUUID, centerUUID, subject).Error
 }
 
 func (b *bugReportsRepository) GetStatistics(ctx context.Context) ([]ReportStatistics, error) {
 	var statistics []ReportStatistics
 	err := b.GetTX(ctx).
 		Preload("Operator").
+		Order("operator_uuid").
+		Find(&statistics).
+		Error
+
+	return statistics, err
+}
+
+func (b *bugReportsRepository) GetCenterStatistics(ctx context.Context) ([]ReportCenterStatistics, error) {
+	var statistics []ReportCenterStatistics
+	err := b.GetTX(ctx).
+		Preload("Operator").
+		Preload("Center").
 		Order("operator_uuid").
 		Find(&statistics).
 		Error

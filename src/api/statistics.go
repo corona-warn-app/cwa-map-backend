@@ -52,8 +52,86 @@ func NewStatisticsAPI(reportsRepository repositories.BugReports, auth *jwtauth.J
 		r.Use(api.RequireRole(security.RoleAdmin))
 
 		r.Get("/reports", statistics.getReportStatistics)
+		r.Get("/reports/centers", statistics.getCenterReportsStatistics)
 	})
 	return statistics
+}
+
+func (c *Statistics) getCenterReportsStatistics(w http.ResponseWriter, r *http.Request) {
+	stats, err := c.reportsRepository.GetCenterStatistics(r.Context())
+	if err != nil {
+		logrus.WithError(err).Error("Error getting report statistics")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	subjects := make([]string, 0)
+	operators := make(map[string]domain.Operator)
+	centers := make(map[string]domain.Center)
+	data := make(map[string]map[string]map[string]uint)
+	for _, value := range stats {
+		knownSubject := false
+		for _, s := range subjects {
+			if s == value.Subject {
+				knownSubject = true
+				break
+			}
+		}
+
+		if !knownSubject {
+			subjects = append(subjects, value.Subject)
+		}
+
+		if _, ok := data[value.OperatorUUID]; !ok {
+			data[value.OperatorUUID] = make(map[string]map[string]uint)
+			operators[value.OperatorUUID] = *value.Operator
+		}
+
+		if _, ok := data[value.OperatorUUID][value.CenterUUID]; !ok {
+			data[value.OperatorUUID][value.CenterUUID] = make(map[string]uint)
+			centers[value.CenterUUID] = *value.Center
+		}
+
+		data[value.OperatorUUID][value.CenterUUID][value.Subject] = value.Count
+	}
+
+	w.Header().Set("Content-Type", "text/csv")
+	if _, err := w.Write([]byte{0xEF, 0xBB, 0xBF}); err != nil {
+		logrus.WithError(err).Error("Error writing BOM")
+		return
+	}
+
+	csvWriter := csv.NewWriter(w)
+	csvWriter.Comma = ';'
+
+	headers := []string{"partner_uuid", "partner_number", "partner_name", "center_uuid", "center_name"}
+	headers = append(headers, subjects...)
+	if err := csvWriter.Write(headers); err != nil {
+		logrus.WithError(err).Error("Error writing response")
+		return
+	}
+
+	for operator, operatorCenters := range data {
+		for center, entry := range operatorCenters {
+			columns := []string{
+				operator,
+				util.PtrToString(operators[operator].OperatorNumber, ""),
+				operators[operator].Name,
+				center,
+				centers[center].Name,
+			}
+			for _, subject := range subjects {
+				columns = append(columns, strconv.Itoa(int(entry[subject])))
+			}
+
+			if err := csvWriter.Write(columns); err != nil {
+				logrus.WithError(err).Error("Error writing response")
+				return
+			}
+		}
+	}
+
+	csvWriter.Flush()
 }
 
 func (c *Statistics) getReportStatistics(w http.ResponseWriter, r *http.Request) {
@@ -97,7 +175,7 @@ func (c *Statistics) getReportStatistics(w http.ResponseWriter, r *http.Request)
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Comma = ';'
 
-	headers := []string{"partner_uuid", "partner_name", "partner_number"}
+	headers := []string{"partner_uuid", "partner_number", "partner_name"}
 	headers = append(headers, subjects...)
 	if err := csvWriter.Write(headers); err != nil {
 		logrus.WithError(err).Error("Error writing response")
