@@ -63,6 +63,7 @@ type CenterSummaryDTO struct {
 	Appointment  *string         `json:"appointment"`
 	TestKinds    []string        `json:"testKinds"`
 	DCC          *bool           `json:"dcc"`
+	LastUpdate   *time.Time      `json:"lastUpdate"`
 }
 
 type CenterDTO struct {
@@ -95,6 +96,7 @@ func (CenterSummaryDTO) MapFromDomain(center *domain.Center) *CenterSummaryDTO {
 		TestKinds:    center.TestKinds,
 		Appointment:  (*string)(center.Appointment),
 		DCC:          center.DCC,
+		LastUpdate:   center.LastUpdate,
 	}
 
 }
