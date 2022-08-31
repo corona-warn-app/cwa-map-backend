@@ -107,6 +107,7 @@ type Center struct {
 	Email        *string `validate:"omitempty,email"`
 	Visible      *bool
 	LastUpdate   *time.Time
+	Notified     *time.Time
 }
 
 type CenterWithDistance struct {

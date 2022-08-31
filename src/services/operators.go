@@ -23,24 +23,41 @@ package services
 
 import (
 	"com.t-systems-mms.cwa/core/security"
+	"com.t-systems-mms.cwa/core/util"
 	"com.t-systems-mms.cwa/domain"
 	"com.t-systems-mms.cwa/repositories"
 	"context"
+	"errors"
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	"time"
 )
 
 type Operators interface {
 	// GetCurrentOperator gets the currently authenticated operator
 	// If there is an authenticated context, but no operator exists for this subject, it will be created
 	GetCurrentOperator(ctx context.Context) (domain.Operator, error)
+	OperatorNotificationScheduler()
+	ConfirmNotification(ctx context.Context, token string) error
+}
+
+type OperatorsServiceConfig struct {
+	NotificationInterval int
+	MaxLastUpdateAge     int
+	RenotifyInterval     int
 }
 
 type operatorsService struct {
-	operators repositories.Operators
+	operators   repositories.Operators
+	config      OperatorsServiceConfig
+	mailService MailService
 }
 
-func NewOperatorsService(operators repositories.Operators) Operators {
+func NewOperatorsService(operators repositories.Operators, config OperatorsServiceConfig, mailService MailService) Operators {
 	return &operatorsService{
-		operators: operators,
+		operators:   operators,
+		config:      config,
+		mailService: mailService,
 	}
 }
 
@@ -52,4 +69,65 @@ func (o *operatorsService) GetCurrentOperator(ctx context.Context) (domain.Opera
 
 	// TODO store operator in context
 	return o.operators.GetOrCreateByToken(ctx, token)
+}
+
+func (o *operatorsService) ProcessOperatorNotification(ctx context.Context, operator domain.Operator) error {
+	if util.IsNilOrEmpty(operator.Email) {
+		return errors.New("missing email")
+	}
+	logrus.WithField("operator", operator.UUID).Info("Processing operator notification")
+
+	if operator.NotificationToken == nil {
+		token := uuid.New().String()
+		operator.NotificationToken = &token
+	}
+
+	if err := o.mailService.ProcessTemplate(ctx,
+		*operator.Email,
+		"operator.notification.template",
+		"operator.notification.subject",
+		operator); err != nil {
+		return err
+	}
+
+	notified := time.Now()
+	operator.Notified = &notified
+
+	_, err := o.operators.Save(ctx, operator)
+	return err
+}
+
+func (o *operatorsService) ProcessOperatorNotifications(ctx context.Context) error {
+	operators, err := o.operators.FindOperatorsForNotification(ctx, o.config.MaxLastUpdateAge, o.config.RenotifyInterval)
+	if err != nil {
+		logrus.WithError(err).Error("Error getting operators")
+		return err
+	}
+	logrus.WithField("count", len(operators)).Info("Processing email verifications")
+	for _, operator := range operators {
+		if err := o.ProcessOperatorNotification(ctx, operator); err != nil {
+			logrus.WithError(err).Error("Error processing operator notification")
+		}
+	}
+	return nil
+}
+
+func (o *operatorsService) OperatorNotificationScheduler() {
+	for {
+		if err := o.ProcessOperatorNotifications(context.Background()); err != nil {
+			logrus.WithError(err).Error("Error processing operator notification")
+		}
+		time.Sleep(time.Duration(o.config.NotificationInterval) * time.Hour)
+	}
+}
+
+func (o *operatorsService) ConfirmNotification(ctx context.Context, token string) error {
+	operator, err := o.operators.FindByNotificationToken(ctx, token)
+	if err != nil {
+		return err
+	}
+
+	operator.NotificationToken = nil
+	_, err = o.operators.Save(ctx, operator)
+	return err
 }

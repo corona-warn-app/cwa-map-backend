@@ -59,6 +59,7 @@ func NewOperatorsAPI(operatorsRepository repositories.Operators, operatorsServic
 
 	operators.Get("/{operator}/logo", operators.GetOperatorLogo)
 	operators.Get("/{operator}/marker", operators.GetOperatorMarker)
+	operators.Get("/confirm/{token}", operators.ConfirmNotification)
 
 	operators.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(auth))
@@ -226,4 +227,13 @@ func (c *Operators) DeleteOperator(w http.ResponseWriter, r *http.Request) (inte
 	logrus.WithField("operator", id).Info("Deleting operator")
 
 	return nil, c.operatorsRepository.Delete(r.Context(), id)
+}
+
+func (c *Operators) ConfirmNotification(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if err := c.operatorsService.ConfirmNotification(r.Context(), token); err != nil {
+		logrus.WithError(err).Error("Error confirming notification")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }

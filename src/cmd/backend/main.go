@@ -91,13 +91,12 @@ func main() {
 	sqlDB.SetConnMaxLifetime(time.Duration(appConfig.Database.ConnMaxLifetime) * time.Minute)
 
 	settingsRepository := repositories.NewSystemSettingsRepository(db)
+	mailService := services.NewMailService(appConfig.Email, settingsRepository)
 
 	centersRepository := repositories.NewCentersRepository(db)
 	operatorsRepository := repositories.NewOperatorsRepository(db)
-	operatorsService := services.NewOperatorsService(operatorsRepository)
-	centersService := services.NewCentersService(centersRepository, operatorsRepository, operatorsService, geocoder)
-
-	mailService := services.NewMailService(appConfig.Email)
+	operatorsService := services.NewOperatorsService(operatorsRepository, appConfig.Operators, mailService)
+	centersService := services.NewCentersService(centersRepository, appConfig.Centers, operatorsRepository, operatorsService, geocoder, mailService)
 
 	bugReportsRepository := repositories.NewBugReportsRepository(db)
 	bugReportsService := services.NewBugReportsService(appConfig.BugReports,
@@ -140,6 +139,7 @@ func main() {
 	}()
 
 	go bugReportsService.PublishScheduler()
+	go operatorsService.OperatorNotificationScheduler()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)

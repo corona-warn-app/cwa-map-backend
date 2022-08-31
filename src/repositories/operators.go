@@ -25,6 +25,7 @@ import (
 	"com.t-systems-mms.cwa/domain"
 	"context"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/sirupsen/logrus"
@@ -43,6 +44,8 @@ type Operators interface {
 	FindStatistics(ctx context.Context) (OperatorsStatistics, error)
 	FindAll(ctx context.Context) ([]domain.Operator, error)
 	Delete(ctx context.Context, id string) error
+	FindOperatorsForNotification(ctx context.Context, lastUpdateAge, renotifyInterval int) ([]domain.Operator, error)
+	FindByNotificationToken(ctx context.Context, token string) (domain.Operator, error)
 }
 
 type operatorsRepository struct {
@@ -139,6 +142,35 @@ func (r *operatorsRepository) FindAll(ctx context.Context) ([]domain.Operator, e
 		Model(&domain.Operator{}).
 		Order("uuid").
 		Find(&result).Error
+
+	return result, err
+}
+
+func (r *operatorsRepository) FindOperatorsForNotification(ctx context.Context, lastUpdateAge, renotifyInterval int) ([]domain.Operator, error) {
+	var result []domain.Operator
+	err := r.GetTX(ctx).
+		Raw(fmt.Sprintf(`
+				select o.*
+from operators o
+         join centers c on o.uuid = c.operator_uuid
+where (o.bug_reports_receiver = 'operator')
+  and ((o.notified < now() - interval '%d weeks') or o.notified is null)
+  and (o.notification_token is null)
+group by o.uuid
+having max(c.last_update) < now() - interval '%d weeks'`, renotifyInterval, lastUpdateAge)).
+		Find(&result).
+		Error
+
+	return result, err
+}
+
+func (r *operatorsRepository) FindByNotificationToken(ctx context.Context, token string) (domain.Operator, error) {
+	var result domain.Operator
+	err := r.GetTX(ctx).
+		Model(domain.Operator{}).
+		Where("notification_token = ?", token).
+		First(&result).
+		Error
 
 	return result, err
 }

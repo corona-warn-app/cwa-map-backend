@@ -22,10 +22,13 @@
 package services
 
 import (
+	"com.t-systems-mms.cwa/repositories"
 	"context"
+	"errors"
 	mail "github.com/xhit/go-simple-mail/v2"
 	"net/smtp"
 	"strings"
+	"text/template"
 )
 
 type EmailConfig struct {
@@ -39,18 +42,57 @@ type EmailConfig struct {
 type MailService interface {
 	// SendMail send the mail with the given receiver, subject and body to the configured mail server
 	SendMail(ctx context.Context, receiver, subject, contentType, body string) error
+	ProcessTemplate(ctx context.Context, receiver, bodyTemplate, subject string, context interface{}) error
 }
 
 type mailService struct {
-	config EmailConfig
-	auth   smtp.Auth
+	config         EmailConfig
+	auth           smtp.Auth
+	systemSettings repositories.SystemSettings
 }
 
-func NewMailService(config EmailConfig) MailService {
+func NewMailService(config EmailConfig, settings repositories.SystemSettings) MailService {
 	return &mailService{
-		config: config,
-		auth:   smtp.PlainAuth("", config.SmtpUser, config.SmtpPassword, config.SmtpHost),
+		config:         config,
+		auth:           smtp.PlainAuth("", config.SmtpUser, config.SmtpPassword, config.SmtpHost),
+		systemSettings: settings,
 	}
+}
+
+func (m *mailService) ProcessTemplate(ctx context.Context, receiver, bodyTemplate, subject string, context interface{}) error {
+	// getting template
+	mailTemplateString, err := m.systemSettings.FindValue(ctx, bodyTemplate)
+	if err != nil {
+		return err
+	} else if mailTemplateString == nil {
+		return errors.New("missing template")
+	}
+
+	mailSubject, err := m.systemSettings.FindValue(ctx, subject)
+	if err != nil {
+		return err
+	} else if mailSubject == nil {
+		return errors.New("missing subject")
+	}
+
+	mailTemplate, err := template.New("mail").Parse(*mailTemplateString)
+	if err != nil {
+		return err
+	}
+
+	buffer := strings.Builder{}
+	err = mailTemplate.Execute(&buffer, context)
+	if err != nil {
+		return err
+	}
+
+	// sending mail
+	err = m.SendMail(ctx, receiver, *mailSubject, "text/html", buffer.String())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *mailService) SendMail(ctx context.Context, receiver, subject, contentType, body string) error {

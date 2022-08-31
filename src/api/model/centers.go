@@ -63,7 +63,8 @@ type CenterSummaryDTO struct {
 	Appointment  *string         `json:"appointment"`
 	TestKinds    []string        `json:"testKinds"`
 	DCC          *bool           `json:"dcc"`
-	LastUpdate   *time.Time      `json:"lastUpdate"`
+	Age          *int            `json:"age"`
+	Responsive   *bool           `json:"responsive"`
 }
 
 type CenterDTO struct {
@@ -82,6 +83,17 @@ func (CenterSummaryDTO) MapFromDomain(center *domain.Center) *CenterSummaryDTO {
 		return nil
 	}
 
+	responsive := true
+	if center.Operator != nil {
+		if center.Operator.BugReportsReceiver == nil &&
+			*center.Operator.BugReportsReceiver == "operator" &&
+			center.Operator.NotificationToken != nil {
+			responsive = false
+		}
+	}
+
+	age := int(time.Now().Sub(*center.LastUpdate).Hours() / 24 / 7)
+
 	return &CenterSummaryDTO{
 		UUID:         center.UUID,
 		Name:         center.Name,
@@ -96,7 +108,8 @@ func (CenterSummaryDTO) MapFromDomain(center *domain.Center) *CenterSummaryDTO {
 		TestKinds:    center.TestKinds,
 		Appointment:  (*string)(center.Appointment),
 		DCC:          center.DCC,
-		LastUpdate:   center.LastUpdate,
+		Age:          &age,
+		Responsive:   &responsive,
 	}
 
 }

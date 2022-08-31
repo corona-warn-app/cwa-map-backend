@@ -26,6 +26,7 @@ import (
 	"com.t-systems-mms.cwa/domain"
 	"context"
 	"errors"
+	"fmt"
 	"github.com/doug-martin/goqu"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -74,6 +75,8 @@ type Centers interface {
 	FindAll() ([]domain.Center, error)
 
 	FindStatistics(ctx context.Context) (CenterStatistics, error)
+
+	FindCentersForNotification(ctx context.Context, lastUpdateAge, renotifyInterval int) ([]domain.Center, error)
 }
 
 type centersRepository struct {
@@ -250,4 +253,20 @@ func (r *centersRepository) FindStatistics(ctx context.Context) (CenterStatistic
 		First(&statistics).Error
 
 	return statistics, err
+}
+
+func (r *centersRepository) FindCentersForNotification(ctx context.Context, lastUpdateAge, renotifyInterval int) ([]domain.Center, error) {
+	var result []domain.Center
+	err := r.GetTX(ctx).
+		Raw(fmt.Sprintf(`
+				select c.*
+from centers c
+         join operators o on c.operator_uuid = o.uuid
+where o.bug_reports_receiver = 'center'
+  and c.last_update < now() - interval '%d weeks'
+  and ((c.notified < now() - interval '%d weeks') or c.notified is null)`, lastUpdateAge, renotifyInterval)).
+		Find(&result).
+		Error
+
+	return result, err
 }

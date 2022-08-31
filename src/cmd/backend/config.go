@@ -41,6 +41,8 @@ type Config struct {
 	Authentication AuthenticationConfig
 	BugReports     services.BugReportConfig
 	Email          services.EmailConfig
+	Operators      services.OperatorsServiceConfig
+	Centers        services.CentersServiceConfig
 }
 
 type DatabaseConfig struct {
@@ -174,6 +176,38 @@ func LoadConfig() error {
 	if err := readStringSecret(logicalClient, backend+"/data/google-maps", "api-key",
 		&appConfig.Google.ApiKey); err != nil {
 		return err
+	}
+
+	// Operators
+	if err := readIntSecret(logicalClient, backend+"/data/operators", "max-last-update-age",
+		&appConfig.Operators.MaxLastUpdateAge); err != nil {
+		appConfig.Operators.MaxLastUpdateAge = 4
+	}
+
+	if err := readIntSecret(logicalClient, backend+"/data/operators", "renotify-interval",
+		&appConfig.Operators.RenotifyInterval); err != nil {
+		appConfig.Operators.RenotifyInterval = 1
+	}
+
+	if err := readIntSecret(logicalClient, backend+"/data/operators", "notification-interval",
+		&appConfig.Operators.NotificationInterval); err != nil {
+		appConfig.Operators.NotificationInterval = 24
+	}
+
+	// Centers
+	if err := readIntSecret(logicalClient, backend+"/data/centers", "max-last-update-age",
+		&appConfig.Centers.MaxLastUpdateAge); err != nil {
+		appConfig.Centers.MaxLastUpdateAge = 4
+	}
+
+	if err := readIntSecret(logicalClient, backend+"/data/centers", "renotify-interval",
+		&appConfig.Centers.RenotifyInterval); err != nil {
+		appConfig.Centers.RenotifyInterval = 1
+	}
+
+	if err := readIntSecret(logicalClient, backend+"/data/centers", "notification-interval",
+		&appConfig.Centers.NotificationInterval); err != nil {
+		appConfig.Centers.NotificationInterval = 24
 	}
 
 	return nil

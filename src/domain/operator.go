@@ -21,6 +21,8 @@
 
 package domain
 
+import "time"
+
 type Operator struct {
 	UUID               string `gorm:"primaryKey"`
 	Subject            *string
@@ -30,4 +32,6 @@ type Operator struct {
 	MarkerIcon         *string
 	Email              *string
 	BugReportsReceiver *string
+	Notified           *time.Time
+	NotificationToken  *string
 }

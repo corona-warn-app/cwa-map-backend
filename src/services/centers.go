@@ -44,6 +44,12 @@ type ImportCenterResult struct {
 	Errors   []string
 }
 
+type CentersServiceConfig struct {
+	NotificationInterval int
+	MaxLastUpdateAge     int
+	RenotifyInterval     int
+}
+
 var (
 	ErrDuplicateUserReference = core.ApplicationError("duplicate user reference")
 )
@@ -52,6 +58,7 @@ type Centers interface {
 	ImportCenters(ctx context.Context, centers []domain.Center, deleteAll bool) ([]domain.Center, error)
 	Save(ctx context.Context, center *domain.Center, geocoding bool) error
 	PerformGeocoding(ctx context.Context, centers []domain.Center)
+	CenterNotificationScheduler()
 }
 
 type centersService struct {
@@ -60,9 +67,11 @@ type centersService struct {
 	operatorsService  Operators
 	geocoder          geocoding.Geocoder
 	validate          *validator.Validate
+	mailService       MailService
+	config            CentersServiceConfig
 }
 
-func NewCentersService(centersRepository repositories.Centers, operators repositories.Operators, operatorsService Operators, geocoder geocoding.Geocoder) Centers {
+func NewCentersService(centersRepository repositories.Centers, config CentersServiceConfig, operators repositories.Operators, operatorsService Operators, geocoder geocoding.Geocoder, mailService MailService) Centers {
 	validate := validator.New()
 	validate.RegisterTagNameFunc(util.JsonTagNameFunc)
 
@@ -72,6 +81,8 @@ func NewCentersService(centersRepository repositories.Centers, operators reposit
 		operatorsService:  operatorsService,
 		geocoder:          geocoder,
 		validate:          validate,
+		mailService:       mailService,
+		config:            config,
 	}
 }
 
@@ -213,4 +224,51 @@ func (s *centersService) PerformGeocoding(ctx context.Context, centers []domain.
 	logrus.WithFields(logrus.Fields{
 		"count": len(centers),
 	}).Info("Geocoding for centers completed")
+}
+
+func (s *centersService) ProcessCenterNotification(ctx context.Context, center domain.Center) error {
+	if util.IsNilOrEmpty(center.Email) {
+		return errors.New("missing email")
+	}
+	logrus.WithField("center", center.UUID).Info("Processing center notification")
+
+	if err := s.mailService.ProcessTemplate(ctx,
+		*center.Email,
+		"center.notification.template",
+		"center.notification.subject",
+		center); err != nil {
+		return err
+	}
+
+	notified := time.Now()
+	center.Notified = &notified
+
+	err := s.centersRepository.Save(ctx, &center)
+	return err
+}
+
+func (s *centersService) ProcessCenterNotifications(ctx context.Context) error {
+	centers, err := s.centersRepository.FindCentersForNotification(ctx, s.config.MaxLastUpdateAge, s.config.RenotifyInterval)
+	if err != nil {
+		logrus.WithError(err).Error("Error getting centers")
+		return err
+	}
+	logrus.WithField("count", len(centers)).Info("Processing center notifications")
+	for _, center := range centers {
+		if err := s.ProcessCenterNotification(ctx, center); err != nil {
+			logrus.WithError(err).Error("Error processing center notification")
+		}
+	}
+	return nil
+}
+
+func (s *centersService) CenterNotificationScheduler() {
+	logrus.WithFields(logrus.Fields{}).
+		Info("Center notification scheduler started")
+	for {
+		if err := s.ProcessCenterNotifications(context.Background()); err != nil {
+			logrus.WithError(err).Error("Error processing center notification")
+		}
+		time.Sleep(time.Duration(s.config.NotificationInterval) * time.Hour)
+	}
 }
