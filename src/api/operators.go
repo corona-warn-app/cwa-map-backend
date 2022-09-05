@@ -201,7 +201,9 @@ func (c *Operators) GetAllOperatorsAsCSV(w http.ResponseWriter, r *http.Request)
 	csvWriter := csv.NewWriter(w)
 	csvWriter.Comma = ';'
 
-	if err := csvWriter.Write([]string{"uuid", "subject", "number", "name", "email", "receiver"}); err != nil {
+	if err := csvWriter.Write([]string{"uuid", "subject", "number", "name", "email", "receiver",
+		"notified", "token",
+	}); err != nil {
 		logrus.WithError(err).Error("Error writing response")
 		return
 	}
@@ -214,6 +216,8 @@ func (c *Operators) GetAllOperatorsAsCSV(w http.ResponseWriter, r *http.Request)
 			operator.Name,
 			util.PtrToString(operator.Email, ""),
 			util.PtrToString(operator.BugReportsReceiver, ""),
+			util.TimeToString(operator.Notified),
+			util.PtrToString(operator.NotificationToken, ""),
 		}); err != nil {
 			logrus.WithError(err).Error("Error writing response")
 			return
@@ -236,4 +240,6 @@ func (c *Operators) ConfirmNotification(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	http.Redirect(w, r, "https://map.schnelltestportal.de/confirmed.html", http.StatusSeeOther)
 }

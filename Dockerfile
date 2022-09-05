@@ -1,7 +1,8 @@
 FROM golang:1.19-alpine as build
 WORKDIR /backend/build
 
-RUN apt-get update && apt-get install unzip
+RUN apk add curl unzip
+#RUN apt-get update && apt-get install unzip
 
 # Download and extract liquibase
 RUN curl -o flyway-commandline-7.9.1-linux-x64.tar.gz https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/7.9.1/flyway-commandline-7.9.1-linux-x64.tar.gz \

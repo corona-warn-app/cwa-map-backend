@@ -85,8 +85,8 @@ func (CenterSummaryDTO) MapFromDomain(center *domain.Center) *CenterSummaryDTO {
 
 	responsive := true
 	if center.Operator != nil {
-		if center.Operator.BugReportsReceiver == nil &&
-			*center.Operator.BugReportsReceiver == "operator" &&
+		if (center.Operator.BugReportsReceiver == nil ||
+			*center.Operator.BugReportsReceiver == "operator") &&
 			center.Operator.NotificationToken != nil {
 			responsive = false
 		}

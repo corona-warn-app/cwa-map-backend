@@ -103,7 +103,7 @@ func (o *operatorsService) ProcessOperatorNotifications(ctx context.Context) err
 		logrus.WithError(err).Error("Error getting operators")
 		return err
 	}
-	logrus.WithField("count", len(operators)).Info("Processing email verifications")
+	logrus.WithField("count", len(operators)).Info("Processing operator verifications")
 	for _, operator := range operators {
 		if err := o.ProcessOperatorNotification(ctx, operator); err != nil {
 			logrus.WithError(err).Error("Error processing operator notification")

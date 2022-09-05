@@ -66,7 +66,9 @@ func (c CoordinatesDTO) MapFromModel(coordinates *domain.Coordinates) *Coordinat
 		return nil
 	}
 
-	c.Longitude = &coordinates.Longitude
-	c.Latitude = &coordinates.Latitude
+	lng := coordinates.Longitude
+	lat := coordinates.Latitude
+	c.Longitude = &lng
+	c.Latitude = &lat
 	return &c
 }
