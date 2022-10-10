@@ -139,8 +139,8 @@ func main() {
 	}()
 
 	go bugReportsService.PublishScheduler()
-	go operatorsService.OperatorNotificationScheduler()
-	go centersService.CenterNotificationScheduler()
+	//go operatorsService.OperatorNotificationScheduler()
+	//go centersService.CenterNotificationScheduler()
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)

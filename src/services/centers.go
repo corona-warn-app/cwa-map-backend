@@ -232,6 +232,9 @@ func (s *centersService) ProcessCenterNotification(ctx context.Context, center d
 	}
 	logrus.WithField("center", center.UUID).Info("Processing center notification")
 
+	if center.Email == nil {
+		return errors.New("invalid email")
+	}
 	if err := s.mailService.ProcessTemplate(ctx,
 		*center.Email,
 		"center.notification.template",
@@ -256,7 +259,9 @@ func (s *centersService) ProcessCenterNotifications(ctx context.Context) error {
 	logrus.WithField("count", len(centers)).Info("Processing center notifications")
 	for _, center := range centers {
 		if err := s.ProcessCenterNotification(ctx, center); err != nil {
-			logrus.WithError(err).Error("Error processing center notification")
+			logrus.WithError(err).
+				WithField("center", center.UUID).
+				Error("Error processing center notification")
 		}
 	}
 	return nil

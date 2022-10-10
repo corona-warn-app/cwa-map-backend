@@ -82,6 +82,10 @@ func (o *operatorsService) ProcessOperatorNotification(ctx context.Context, oper
 		operator.NotificationToken = &token
 	}
 
+	if operator.Email == nil {
+		return errors.New("invalid email")
+	}
+
 	if err := o.mailService.ProcessTemplate(ctx,
 		*operator.Email,
 		"operator.notification.template",
@@ -103,10 +107,12 @@ func (o *operatorsService) ProcessOperatorNotifications(ctx context.Context) err
 		logrus.WithError(err).Error("Error getting operators")
 		return err
 	}
-	logrus.WithField("count", len(operators)).Info("Processing operator verifications")
+	logrus.WithField("count", len(operators)).Info("Processing operator notifications")
 	for _, operator := range operators {
 		if err := o.ProcessOperatorNotification(ctx, operator); err != nil {
-			logrus.WithError(err).Error("Error processing operator notification")
+			logrus.WithError(err).
+				WithField("operator", operator.UUID).
+				Error("Error processing operator notification")
 		}
 	}
 	return nil

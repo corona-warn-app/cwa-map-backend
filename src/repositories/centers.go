@@ -260,9 +260,10 @@ func (r *centersRepository) FindCentersForNotification(ctx context.Context, last
 	err := r.GetTX(ctx).
 		Raw(fmt.Sprintf(`
 				select c.*
-from centers c
+  from centers c
          join operators o on c.operator_uuid = o.uuid
-where o.bug_reports_receiver = 'center'
+  where (c.visible != false and (c.enter_date is null or c.enter_date < now()) and (c.leave_date is null or c.leave_date > now())) 
+  and o.bug_reports_receiver = 'center'
   and c.last_update < now() - interval '%d weeks'
   and ((c.notified < now() - interval '%d weeks') or c.notified is null)`, lastUpdateAge, renotifyInterval)).
 		Find(&result).

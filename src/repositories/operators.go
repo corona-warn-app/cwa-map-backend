@@ -151,13 +151,14 @@ func (r *operatorsRepository) FindOperatorsForNotification(ctx context.Context, 
 	err := r.GetTX(ctx).
 		Raw(fmt.Sprintf(`
 				select o.*
-from operators o
+  from operators o
          join centers c on o.uuid = c.operator_uuid
-where (o.bug_reports_receiver = 'operator')
+  where (c.visible != false and (c.enter_date is null or c.enter_date < now()) and (c.leave_date is null or c.leave_date > now()))
+  and (o.bug_reports_receiver = 'operator')
   and ((o.notified < now() - interval '%d weeks') or o.notified is null)
   and (o.notification_token is null)
-group by o.uuid
-having max(c.last_update) < now() - interval '%d weeks'`, renotifyInterval, lastUpdateAge)).
+  group by o.uuid
+  having max(c.last_update) < now() - interval '%d weeks'`, renotifyInterval, lastUpdateAge)).
 		Find(&result).
 		Error
 
