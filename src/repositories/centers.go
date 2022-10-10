@@ -36,9 +36,10 @@ import (
 const DistanceUnit = 111.045
 
 type SearchParameters struct {
-	Appointment *domain.AppointmentType
-	TestKind    *domain.TestKind
-	DCC         *bool
+	Appointment     *domain.AppointmentType
+	TestKind        *domain.TestKind
+	DCC             *bool
+	IncludeOutdated *bool
 }
 
 type PagedCentersResult struct {
@@ -177,7 +178,7 @@ func (r *centersRepository) Update(ctx context.Context, center domain.Center) (d
 	return center, err
 }
 
-// FindByCoordinates finds centers within the given distance of the specified target coordinates.
+// FindByBounds finds centers within the given bounds
 func (r *centersRepository) FindByBounds(ctx context.Context, target domain.Bounds, params SearchParameters, limit uint) ([]domain.Center, error) {
 	// build base query restriction
 	builder := goqu.From("centers").Where(
@@ -208,6 +209,9 @@ func (r *centersRepository) FindByBounds(ctx context.Context, target domain.Boun
 	}
 	if params.TestKind != nil {
 		builder = builder.Where(goqu.L("test_kinds @> ARRAY[?]::varchar[]", *params.TestKind))
+	}
+	if params.IncludeOutdated == nil || *params.IncludeOutdated == false {
+		builder = builder.Where(goqu.L("last_update > now() - INTERVAL '4 weeks'"))
 	}
 
 	countQuery := builder.Select(goqu.COUNT("*"))
