@@ -450,7 +450,7 @@ func (*Centers) getSearchParameters(r *http.Request) repositories.SearchParamete
 
 	includeOutdatedParameter, hasOutdatedParameter := r.URL.Query()["includeOutdated"]
 	if hasOutdatedParameter {
-		if tmp, err := strconv.ParseBool(includeOutdatedParameter[0]); err != nil {
+		if tmp, err := strconv.ParseBool(includeOutdatedParameter[0]); err == nil {
 			result.IncludeOutdated = &tmp
 		}
 	} else {
